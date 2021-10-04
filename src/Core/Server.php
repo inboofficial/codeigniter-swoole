@@ -1,4 +1,8 @@
-<?php namespace CiSwoole\Core;
+<?php  namespace inboir\CodeigniterS\Core;
+
+use inboir\CodeigniterS\event\Events;
+use Swoole\Process;
+use Throwable;
 
 /**
  * ------------------------------------------------------------------------------------
@@ -37,7 +41,7 @@ class Server
      */
     private static $config =
     [
-        'daemonize'      => true,        // using as daemonize?
+        'daemonize'      => false,        // using as daemonize?
         'package_eof'    => '☯',         // \u262F
         'reload_async'   => true,
         'open_eof_split' => true,
@@ -91,6 +95,7 @@ class Server
      */
     public static function onMasterStart(\Swoole\Server $serv)
     {
+
         if (self::$cfgs['server_port'] === null)
         {
             @chmod(self::$cfgs['server_host'], 0777);
@@ -194,20 +199,16 @@ class Server
     {
         try
         {
-            $_SERVER['argv'] =
-            [
-                0 => SELF,
-                1 => $data['route'],
-            ];
-
-            $_POST = $data['params'] ?? [];
-
-            getCiSwooleConfig('starter');
+            $eventRout = $data['eventRout'];
+            $eventData = $data['eventData'];
+            print 'this is inside task';
+            print json_encode(get_declared_classes());
+            Events::trigger($eventData, $eventRout);
+            print 'this is after event trigger';
         }
-
         // kill process
-        catch (\Throwable $e) { self::logs($e); }
-        finally { \Swoole\Process::kill(getmypid()); }
+        catch (Throwable $e) { self::logs($e); }
+        finally { Process::kill(getmypid()); }
     }
 
     // ------------------------------------------------------------------------------
@@ -279,9 +280,9 @@ class Server
     /**
      * log message to debug
      *
-     * @param \Throwable $msg
+     * @param Throwable $msg
      */
-    private static function logs(\Throwable $msg)
+    private static function logs(Throwable $msg)
     {
         $strings  = $msg->getMessage() . "\n";
         $strings .= $msg->getTraceAsString();
@@ -324,7 +325,7 @@ class Server
             }
         }
 
-        catch (\Throwable $e) { self::logs($e); }
+        catch (Throwable $e) { self::logs($e); }
         finally { unset($timers); }
     }
 

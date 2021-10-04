@@ -1,4 +1,4 @@
-<?php namespace CiSwoole\Core;
+<?php namespace inboir\CodeigniterS\Core;
 
 /**
  * ------------------------------------------------------------------------------------
@@ -10,7 +10,6 @@
  */
 class Client
 {
-
     // ------------------------------------------------------------------------------
 
     /**
@@ -52,7 +51,6 @@ class Client
          * @property array $stamsel
          */
         $client = new \Swoole\Client(self::$config['server_type'], $mode);
-
         // dynamic custom data
         $client->CiSwooleData = $data;
 
