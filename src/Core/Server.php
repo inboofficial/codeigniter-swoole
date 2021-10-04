@@ -3,6 +3,7 @@
 use inboir\CodeigniterS\event\Events;
 use Swoole\Process;
 use Throwable;
+use function inboir\CodeigniterS\Helpers\getCiSwooleConfig;
 
 /**
  * ------------------------------------------------------------------------------------

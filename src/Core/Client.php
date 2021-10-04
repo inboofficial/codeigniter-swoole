@@ -1,5 +1,7 @@
 <?php namespace inboir\CodeigniterS\Core;
 
+use function inboir\CodeigniterS\Helpers\getCiSwooleConfig;
+
 /**
  * ------------------------------------------------------------------------------------
  * Swoole Client
