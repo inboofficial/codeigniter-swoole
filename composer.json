@@ -5,6 +5,7 @@
     "type": "library",
     "license": "MIT",
     "autoload": {
+        "files": [ "src/Helpers/magics.php" ],
         "psr-4": {
             "inboir\\CodeigniterS\\": "src/"
         }
