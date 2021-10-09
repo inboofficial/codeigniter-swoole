@@ -1,7 +1,10 @@
 <?php namespace inboir\CodeigniterS\event\eventDispatcher;
 
 
+use inboir\CodeigniterS\Core\Client;
+use inboir\CodeigniterS\event\Event;
 use inboir\CodeigniterS\event\EventRepository;
+use inboir\CodeigniterS\event\EventStatus;
 use Psr\EventDispatcher\StoppableEventInterface;
 use Symfony\Component\EventDispatcher\Debug\WrappedListener;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
@@ -24,12 +27,10 @@ class AsyncEventDispatcher implements EventDispatcherInterface
     protected array $sorted = [];
     protected array $optimized = [];
 
-    protected ?EventRepository $eventLogger;
     protected bool $eagerOptimizer;
 
-    public function __construct(EventRepository $eventLogger = null, bool $eagerOptimizer = true)
+    public function __construct(bool $eagerOptimizer = true)
     {
-        $this->eventLogger = $eventLogger;
         $this->eagerOptimizer = $eagerOptimizer;
     }
 
@@ -52,6 +53,23 @@ class AsyncEventDispatcher implements EventDispatcherInterface
 
         return $event;
     }
+
+    /**
+     * @param object $event
+     * @param string|null $eventName
+     * @param int|null $eventSchedule
+     * @return string EventId
+     */
+    public function asyncDispatch(object $event, ?string $eventName = null, ?int $eventSchedule = null): string
+    {
+        $eventModel = new Event($eventSchedule);
+        $eventModel->eventStatus = EventStatus::WAITING;
+        $eventModel->eventData = $event;
+        $eventModel->eventRout = $eventName;
+        Client::send(['event' => $eventModel]);
+        return $eventModel->eventID;
+    }
+
 
     /**
      * {@inheritdoc}

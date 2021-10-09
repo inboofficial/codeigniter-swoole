@@ -1,6 +1,9 @@
 <?php  namespace inboir\CodeigniterS\Core;
 
-use inboir\CodeigniterS\event\eventDispatcher\Events;
+use inboir\CodeigniterS\event\Event;
+use inboir\CodeigniterS\event\EventRepository;
+use inboir\CodeigniterS\event\Events;
+use inboir\CodeigniterS\event\EventStatus;
 use Swoole\Process;
 use Throwable;
 use function inboir\CodeigniterS\Helpers\getCiSwooleConfig;
@@ -17,7 +20,8 @@ class Server
 {
 
     // ------------------------------------------------------------------------------
-
+    const TIMER_LIMIT = 86400000;
+    protected static EventRepository $eventRepository;
     /**
      * host config
      *
@@ -201,13 +205,65 @@ class Server
     {
         try
         {
-            $eventRout = $data['eventRout'];
-            $eventData = $data['eventData'];
-            Events::trigger($eventData, $eventRout);
+            $event = $data['eventRout'];
+            if($event instanceof Event){
+                if(!$event->eventSchedule)
+                    self::createEventCall($event);
+                else{
+                    self::createdScheduledEvent($event, $serv);
+                }
+            }
         }
         // kill process
         catch (Throwable $e) { self::logs($e); }
         finally { Process::kill(getmypid()); }
+    }
+
+    protected static function createEventCall(Event $event){
+        $event->eventStatus = EventStatus::PULLED;
+        $event = self::$eventRepository->saveEventOnNotExist($event);
+        if(!$event) return;
+        self::callEvent($event);
+    }
+
+    protected static function createdScheduledEvent(Event $event, \Swoole\Server $server)
+    {
+        $scheduleInterval = time() - $event->eventSchedule;
+        if($scheduleInterval < 1) {
+            self::createEventCall($event);
+            return;
+        }
+        $event->eventStatus = EventStatus::SCHEDULED;
+        $event = self::$eventRepository->saveEventOnNotExist($event);
+        if(!$event) return;
+        self::scheduleEvent($event, $server);
+    }
+
+    protected static function scheduleEvent(Event $event, \Swoole\Server $server)
+    {
+        $scheduleInterval = time() - $event->eventSchedule;
+        if($scheduleInterval < 1) {
+            self::callEvent($event);
+            return;
+        }
+        $timerStart = $scheduleInterval >= self::TIMER_LIMIT ? self::TIMER_LIMIT : $scheduleInterval * 1000;
+        $server->after($timerStart,
+            function() use ($event, $server)
+            {
+                self::scheduleEvent($event, $server);
+            });
+    }
+
+    protected static function callEvent(Event $event)
+    {
+        try {
+            Events::trigger($event->eventData, $event->eventRout);
+            $event->eventStatus = EventStatus::FINISHED;
+        }catch (Throwable $ex){
+            $event->eventStatus = EventStatus::FAILED;
+        } finally {
+            self::$eventRepository->updateEvent($event);
+        }
     }
 
     // ------------------------------------------------------------------------------
@@ -328,5 +384,6 @@ class Server
     }
 
     // ------------------------------------------------------------------------------
+
 
 }

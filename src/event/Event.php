@@ -26,5 +26,7 @@ class EventStatus{
     const FINISHED = 'finished';
     const BLOCKED = 'blocked';
     const FAILED = 'failed';
+    const PULLED = 'pulled';
+    const SCHEDULED = 'scheduled';
 }
 

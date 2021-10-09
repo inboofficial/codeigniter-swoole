@@ -3,7 +3,7 @@
 
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
-abstract class InboListener implements EventSubscriberInterface
+abstract class CISubscriber implements EventSubscriberInterface
 {
 
     public function __construct()
@@ -13,7 +13,7 @@ abstract class InboListener implements EventSubscriberInterface
 
     private static ?self $instance = null;
 
-    public static function getInstance(): InboListener
+    public static function getInstance(): CISubscriber
     {
         if (!(static::$instance instanceof static)) {
             static::$instance = new static();
