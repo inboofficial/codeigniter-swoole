@@ -58,11 +58,14 @@ class Server
     /**
      * start a swoole server in cli
      *
+     * @param EventRepository $eventRepository
      * @return mixed
+     * @throws \Exception
      */
-    public static function start()
+    public static function start(EventRepository $eventRepository)
     {
         self::initConfig();
+        self::$eventRepository = $eventRepository;
 
         $serv = new \Swoole\Server
         (
@@ -205,7 +208,7 @@ class Server
     {
         try
         {
-            $event = $data['eventRout'];
+            $event = $data['event'];
             if($event instanceof Event){
                 if(!$event->eventSchedule)
                     self::createEventCall($event);
