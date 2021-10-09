@@ -1,6 +1,8 @@
 <?php namespace inboir\CodeigniterS\event;
 
 
+use inboir\CodeigniterS\event\eventDispatcher\AsyncEventDispatcher;
+
 defined('BASEPATH') or exit('No direct script access allowed');
 
 /**
@@ -13,8 +15,8 @@ defined('BASEPATH') or exit('No direct script access allowed');
  * @version		1.0
  * @author		Eric Barnes <http://ericlbarnes.com>
  * @author		Dan Horrigan <http://dhorrigan.com>
- * @license		Apache License v2.0
- * @copyright	2010 Dan Horrigan
+ * @author      M Ali Nasiri K <mohammad.ank@outlook.com>
+ * @license		MIT
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,7 +40,7 @@ class Events {
      * @var	array	An array of listeners
      */
     protected static $_listeners = array();
-    public static QueueableEventDispatcher $dispatcher ;
+    public static AsyncEventDispatcher $dispatcher ;
     // ------------------------------------------------------------------------
 
     /**
@@ -53,7 +55,7 @@ class Events {
      */
     public function __construct()
     {
-        self::$dispatcher = new QueueableEventDispatcher();
+        self::$dispatcher = new AsyncEventDispatcher();
     }
 
     public static function register($event, array $callback, $priority = 0)
@@ -80,35 +82,29 @@ class Events {
      * @access	public
      * @param	string	The name of the event
      * @param	mixed	Any data that is to be passed to the listener
-     * @param	string	The return type
-     * @param   bool
-     * @return	mixed	The return of the listeners, in the return type
      */
-    public static function trigger($event, $eventName = '', $return_type = 'string', bool $queued = false)
+    public static function trigger($event, $eventName = '')
     {
-        print 'this is inside of trigger';
-        self::log_message('debug', 'Events::trigger() - Triggering event "'.$eventName.'"');
-
-        $calls = array();
         if (self::has_listeners($eventName))
         {
-            self::$dispatcher->dispatch($event,$eventName,$queued);
+            self::$dispatcher->dispatch($event,$eventName);
         }
+    }
 
-        return self::_format_return($calls, $return_type);
+    public static function asyncTrigger($event, $eventName = '')
+    {
+        if (self::has_listeners($eventName))
+        {
+            self::$dispatcher->dispatch($event,$eventName,true);
+        }
     }
 
     public static function schedule($event, $schedule, $eventName = '', $return_type = 'string')
     {
-        self::log_message('debug', 'Events::trigger() - Triggering event "'.$eventName.'"');
-
-        $calls = array();
         if (self::has_listeners($eventName))
         {
             self::$dispatcher->scheduleEvent($event,$eventName,$schedule);
         }
-
-        return self::_format_return($calls, $return_type);
     }
 
     // ------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 <?php  namespace inboir\CodeigniterS\Core;
 
-use inboir\CodeigniterS\event\Events;
+use inboir\CodeigniterS\event\eventDispatcher\Events;
 use Swoole\Process;
 use Throwable;
 use function inboir\CodeigniterS\Helpers\getCiSwooleConfig;
@@ -96,7 +96,8 @@ class Server
      */
     public static function onMasterStart(\Swoole\Server $serv)
     {
-
+        new Events();
+        self::initTimers($serv);
         if (self::$cfgs['server_port'] === null)
         {
             @chmod(self::$cfgs['server_host'], 0777);
@@ -136,15 +137,15 @@ class Server
     public static function onWorkerStart(\Swoole\Server $serv, $workerId)
     {
         // set process name
-        ($workerId >= $serv->setting['worker_num']) ?
-        @swoole_set_process_name($serv->setting['process_name'].'-TASK') :
-        @swoole_set_process_name($serv->setting['process_name'].'-WORKER');
+        if(($workerId >= $serv->setting['worker_num']))
+            @swoole_set_process_name($serv->setting['process_name'].'-TASK');
+        else
+            @swoole_set_process_name($serv->setting['process_name'].'-WORKER');
 
         // when task start, return
         if ($serv->taskworker) { return; }
 
         // init all timers
-        self::initTimers($serv);
     }
 
     // ------------------------------------------------------------------------------
@@ -202,10 +203,7 @@ class Server
         {
             $eventRout = $data['eventRout'];
             $eventData = $data['eventData'];
-            print 'this is inside task';
-            print json_encode(get_declared_classes());
             Events::trigger($eventData, $eventRout);
-            print 'this is after event trigger';
         }
         // kill process
         catch (Throwable $e) { self::logs($e); }
@@ -308,20 +306,19 @@ class Server
         try
         {
             $timers = getCiSwooleConfig('timers');
-
             foreach ($timers as $route => $microSeconds)
             {
                 $data =
-                [
-                    'route'  => $route,
-                    'params' => [],
-                ];
+                    [
+                        'route'  => $route,
+                        'params' => [],
+                    ];
 
                 $serv->tick($microSeconds, function () use ($serv, $data)
                 {
                     $stats = $serv->stats();
 
-                    if ($stats['tasking_num'] < 4) { $serv->task($data); }
+                    if ($stats['tasking_num'] < 64) { $serv->task($data); }
                 });
             }
         }

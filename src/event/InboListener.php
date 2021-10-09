@@ -1,7 +1,6 @@
 <?php namespace inboir\CodeigniterS\event;
 
 
-use inboir\CodeigniterS\event\Events;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
 abstract class InboListener implements EventSubscriberInterface
