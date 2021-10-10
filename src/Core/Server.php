@@ -381,17 +381,12 @@ class Server
             $timers = getCiSwooleConfig('timers');
             foreach ($timers[0] as $route => $microSeconds)
             {
-                $data =
-                    [
-                        'route'  => $route,
-                        'params' => [],
-                    ];
-
-                $serv->tick($microSeconds, function () use ($serv, $data)
+                $serv->tick($microSeconds, function () use ($serv, $route)
                 {
                     $stats = $serv->stats();
-
-                    if ($stats['tasking_num'] < 64) { $serv->task($data); }
+                    $event = new Event();
+                    $event->eventRout = $route;
+                    if ($stats['tasking_num'] < 64) { $serv->task($route); }
                 });
             }
         }
