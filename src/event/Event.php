@@ -19,6 +19,7 @@ class Event
     {
         $this->eventCreated = time();
         $this->eventSchedule = $eventSchedule ?? time();
+        $this->eventData = (object)[];
     }
 }
 
