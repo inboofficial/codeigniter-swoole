@@ -209,12 +209,10 @@ class Server
         try
         {
             $event = $data['event'];
-            if($event instanceof Event){
-                if(!$event->eventSchedule)
-                    self::createEventCall($event);
-                else{
-                    self::createdScheduledEvent($event, $serv);
-                }
+            if(!$event->eventSchedule)
+                self::createEventCall($event);
+            else{
+                self::createdScheduledEvent($event, $serv);
             }
         }
         // kill process
@@ -222,14 +220,22 @@ class Server
         finally { Process::kill(getmypid()); }
     }
 
-    protected static function createEventCall(Event $event){
+
+    /**
+     * @param $event Event
+     */
+    protected static function createEventCall($event){
         $event->eventStatus = EventStatus::PULLED;
         $event = self::$eventRepository->saveEventOnNotExist($event);
         if(!$event) return;
         self::callEvent($event);
     }
 
-    protected static function createdScheduledEvent(Event $event, \Swoole\Server $server)
+    /**
+     * @param $event Event
+     * @param \Swoole\Server $server
+     */
+    protected static function createdScheduledEvent($event, \Swoole\Server $server)
     {
         $scheduleInterval = time() - $event->eventSchedule;
         if($scheduleInterval < 1) {
@@ -242,7 +248,11 @@ class Server
         self::scheduleEvent($event, $server);
     }
 
-    protected static function scheduleEvent(Event $event, \Swoole\Server $server)
+    /**
+     * @param $event Event
+     * @param \Swoole\Server $server
+     */
+    protected static function scheduleEvent($event, \Swoole\Server $server)
     {
         $scheduleInterval = time() - $event->eventSchedule;
         if($scheduleInterval < 1) {
@@ -257,7 +267,11 @@ class Server
             });
     }
 
-    protected static function callEvent(Event $event)
+
+    /**
+     * @param $event Event
+     */
+    protected static function callEvent($event)
     {
         try {
             Events::trigger($event->eventData, $event->eventRout);
@@ -365,7 +379,7 @@ class Server
         try
         {
             $timers = getCiSwooleConfig('timers');
-            foreach ($timers as $route => $microSeconds)
+            foreach ($timers[0] as $route => $microSeconds)
             {
                 $data =
                     [
