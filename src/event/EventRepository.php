@@ -12,9 +12,9 @@ interface EventRepository
      * generate event id if not exist and persist in event storage
      *
      * @param Event $event
-     * @return Event|false returns false if event exists
+     * @return Event|null returns false if event exists
      */
-    function saveEventOnNotExist(Event $event): Event;
+    function saveEventOnNotExist(Event $event): ?Event;
 
 
     /**
