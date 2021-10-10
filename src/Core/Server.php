@@ -208,8 +208,11 @@ class Server
     {
         try
         {
+            /** @var Event $event */
             $event = $data['event'];
-            if(!$event->eventSchedule)
+            if(!$event->eventRout) return;
+            if(!Events::has_listeners($event->eventRout)) return;
+            if(!$event->eventSchedule || $event->eventSchedule > time())
                 self::createEventCall($event);
             else{
                 self::createdScheduledEvent($event, $serv);

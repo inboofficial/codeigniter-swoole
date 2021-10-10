@@ -58,11 +58,13 @@ class AsyncEventDispatcher implements EventDispatcherInterface
      * @param object $event
      * @param string|null $eventName
      * @param int|null $eventSchedule
+     * @param string|null $event_unique
      * @return string EventId
      */
-    public function asyncDispatch(object $event, ?string $eventName = null, ?int $eventSchedule = null): string
+    public function asyncDispatch(object $event, ?string $eventName = null, ?int $eventSchedule = null, ?string $event_unique = null): string
     {
         $eventModel = new Event($eventSchedule);
+        if($event_unique != null) $eventModel->eventID = $event_unique;
         $eventModel->eventStatus = EventStatus::WAITING;
         $eventModel->eventData = $event;
         $eventModel->eventRout = $eventName;

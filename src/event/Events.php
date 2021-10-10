@@ -91,11 +91,11 @@ class Events {
         }
     }
 
-    public static function asyncTrigger($event, ?string $eventName = null, ?int $eventSchedule = null)
+    public static function asyncTrigger($event, ?string $eventName = null, ?int $eventSchedule = null, ?string $event_unique = null)
     {
         if (self::has_listeners($eventName))
         {
-            self::$dispatcher->asyncDispatch($event,$eventName,$eventSchedule);
+            self::$dispatcher->asyncDispatch($event,$eventName,$eventSchedule, $event_unique);
         }
     }
 
