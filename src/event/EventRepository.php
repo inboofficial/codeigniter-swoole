@@ -24,7 +24,7 @@ interface EventRepository
      * @param string $eventId
      * @return Event
      */
-    function getEvent(string $eventId): Event;
+    function getEvent(string $eventId): ?Event;
 
     /**
      *
@@ -33,7 +33,7 @@ interface EventRepository
      * @param string $eventId
      * @return Event|null returns null if event status is not 'waiting'
      */
-    function pullEvent(string $eventId): Event;
+    function pullEvent(string $eventId): ?Event;
 
     /**
      * @param string $eventId
@@ -58,5 +58,5 @@ interface EventRepository
      * @param Event $event
      * @return Event
      */
-    function updateEvent(Event $event): Event;
+    function updateEvent(Event $event): ?Event;
 }

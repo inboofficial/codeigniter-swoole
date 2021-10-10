@@ -386,7 +386,7 @@ class Server
                     $stats = $serv->stats();
                     $event = new Event();
                     $event->eventRout = $route;
-                    if ($stats['tasking_num'] < 64) { $serv->task($route); }
+                    if ($stats['tasking_num'] < 64) { $serv->task(['event' => $route]); }
                 });
             }
         }

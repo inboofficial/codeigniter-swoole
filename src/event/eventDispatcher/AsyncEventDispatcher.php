@@ -67,7 +67,7 @@ class AsyncEventDispatcher implements EventDispatcherInterface
         $eventModel->eventData = $event;
         $eventModel->eventRout = $eventName;
         Client::send(['event' => $eventModel]);
-        return $eventModel->eventID;
+        return $eventModel;
     }
 
 
