@@ -1,6 +1,7 @@
 <?php  namespace inboir\CodeigniterS\Core;
 
 use inboir\CodeigniterS\event\Event;
+use inboir\CodeigniterS\event\EventException;
 use inboir\CodeigniterS\event\EventRepository;
 use inboir\CodeigniterS\event\Events;
 use inboir\CodeigniterS\event\EventStatus;
@@ -280,6 +281,13 @@ class Server
             Events::trigger($event->eventData, $event->eventRout);
             $event->eventStatus = EventStatus::FINISHED;
         }catch (Throwable $ex){
+            $eventError = new EventException();
+            $eventError->exception_code = $ex->getCode();
+            $eventError->exception_file = $ex->getFile();
+            $eventError->exception_line = $ex->getLine();
+            $eventError->exception_message = $ex->getMessage();
+            $eventError->exception_trace = $ex->getTraceAsString();
+            $event->error = $eventError;
             $event->eventStatus = EventStatus::FAILED;
         } finally {
             self::$eventRepository->updateEvent($event);
