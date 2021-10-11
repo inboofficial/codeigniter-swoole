@@ -69,24 +69,19 @@ class Events {
     /**
      * Trigger
      *
-     * Triggers an event and returns the results.  The results can be returned
-     * in the following formats:
      *
-     * 'array'
-     * 'json'
-     * 'serialized'
-     * 'string'
-     *
-     * @access	public
-     * @param	string	The name of the event
-     * @param	mixed	Any data that is to be passed to the listener
+     * @access    public
+     * @param string    The name of the event
+     * @param mixed    Any data that is to be passed to the listener
+     * @return array
      */
-    public static function trigger($event, $eventName = '')
+    public static function trigger($event, $eventName = ''): array
     {
         if (self::has_listeners($eventName))
         {
-            self::$dispatcher->dispatch($event,$eventName);
+            return self::$dispatcher->dispatchGetErrors($event,$eventName);
         }
+        else return [];
     }
 
     public static function asyncTrigger($event, ?string $eventName = null, ?int $eventSchedule = null, ?string $event_unique = null)

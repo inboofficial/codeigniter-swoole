@@ -4,14 +4,12 @@
 use Co\WaitGroup;
 use inboir\CodeigniterS\Core\Client;
 use inboir\CodeigniterS\event\Event;
-use inboir\CodeigniterS\event\EventRepository;
 use inboir\CodeigniterS\event\EventStatus;
-use Psr\EventDispatcher\StoppableEventInterface;
 use Swoole\Coroutine;
 use Symfony\Component\EventDispatcher\Debug\WrappedListener;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
-
+use Throwable;
 
 
 /**
@@ -58,6 +56,23 @@ class AsyncEventDispatcher implements EventDispatcherInterface
 
         return $event;
     }
+
+    public function dispatchGetErrors(object $event, string $eventName = null, $catchError = false): array
+    {
+        $eventName = $eventName ?? \get_class($event);
+
+        if (null !== $this->optimized) {
+            $listeners = $this->optimized[$eventName];
+        } else {
+            $listeners = $this->getListeners($eventName);
+        }
+
+        if ($listeners) {
+            return $this->callListeners($listeners, $eventName, $event);
+        }
+        return [];
+    }
+
 
     /**
      * @param object $event
@@ -251,20 +266,26 @@ class AsyncEventDispatcher implements EventDispatcherInterface
      * @param string     $eventName The name of the event to dispatch
      * @param object     $event     The event object to pass to the event handlers/listeners
      */
-    protected function callListeners(iterable $listeners, string $eventName, object $event)
+    protected function callListeners(iterable $listeners, string $eventName, object $event): array
     {
+        $errors = [];
         if($this->coroutineSupport) {
             $waitGroup = new WaitGroup();
             foreach ($this->coroutineCallable[$eventName] as $wrappedListener){
-                Coroutine::create($wrappedListener, $eventName, $event, $waitGroup);
+                Coroutine::create($wrappedListener, $eventName, $event, $waitGroup, $errors);
             }
             $waitGroup->wait();
         }
         else {
             foreach ($listeners as $listener) {
-                $listener($event, $eventName, $this);
+                try {
+                    $listener($event, $eventName, $this);
+                }catch (Throwable $exception){
+                    array_push($errors, $exception);
+                }
             }
         }
+        return $errors;
     }
 
     /**
@@ -317,12 +338,12 @@ class AsyncEventDispatcher implements EventDispatcherInterface
             $this->coroutineCallable = [];
             foreach ($this->optimized as $eventName => $listeners) {
                 foreach ($listeners as $listener) {
-                    $this->coroutineCallable[$eventName][] = function ($eventName, $event, WaitGroup $waitGroup) use ($listener) {
+                    $this->coroutineCallable[$eventName][] = function ($eventName, $event, WaitGroup $waitGroup, array $errors) use ($listener) {
                         $waitGroup->add();
                         try {
                             $listener($event, $eventName);
-                        } catch (\Throwable $ex) {
-                            print 'dashmajan';
+                        } catch (Throwable $ex) {
+                            array_push($errors, $ex);
                         } finally {
                             $waitGroup->done();
                         }

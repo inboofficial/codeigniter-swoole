@@ -305,20 +305,37 @@ class Server
     protected static function callEvent($event)
     {
         try {
-            Events::trigger($event->eventData, $event->eventRout);
-            $event->eventStatus = EventStatus::FINISHED;
+            /** @var Throwable[] $errors */
+            $errors = Events::trigger($event->eventData, $event->eventRout);
+            if(!$errors || empty($errors))
+                $event->eventStatus = EventStatus::FINISHED;
+            else{
+                foreach ($errors as $error){
+                    $event->errors[] = self::throwableToEventError($error);
+                }
+                $event->eventStatus = EventStatus::FAILED;
+            }
         }catch (Throwable $ex){
-            $eventError = new EventException();
-            $eventError->exception_code = $ex->getCode();
-            $eventError->exception_file = $ex->getFile();
-            $eventError->exception_line = $ex->getLine();
-            $eventError->exception_message = $ex->getMessage();
-            $eventError->exception_trace = $ex->getTraceAsString();
-            $event->error = $eventError;
+            $event->errors[] = self::throwableToEventError($ex);
             $event->eventStatus = EventStatus::FAILED;
         } finally {
             self::$eventRepository->updateEvent($event);
         }
+    }
+
+    /**
+     * @param Throwable $throwable
+     * @return EventException
+     */
+    protected static function throwableToEventError(Throwable $throwable): EventException
+    {
+        $eventError = new EventException();
+        $eventError->exception_code = $throwable->getCode();
+        $eventError->exception_file = $throwable->getFile();
+        $eventError->exception_line = $throwable->getLine();
+        $eventError->exception_message = $throwable->getMessage();
+        $eventError->exception_trace = $throwable->getTraceAsString();
+        return $eventError;
     }
 
     // ------------------------------------------------------------------------------

@@ -13,7 +13,8 @@ class Event
     public object $eventData;
     public int $eventCreated;
     public int $eventSchedule;
-    public ?EventException $error = null;
+    /** @var EventException[] */
+    public array $errors = [];
 
     public function __construct(?int $eventSchedule = null)
     {
