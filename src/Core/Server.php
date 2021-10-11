@@ -1,6 +1,8 @@
 <?php  namespace inboir\CodeigniterS\Core;
 
 use inboir\CodeigniterS\event\Event;
+use inboir\CodeigniterS\event\EventCarrier;
+use inboir\CodeigniterS\event\eventDispatcher\EventExceptionRepository;
 use inboir\CodeigniterS\event\EventException;
 use inboir\CodeigniterS\event\EventRepository;
 use inboir\CodeigniterS\event\Events;
@@ -62,11 +64,13 @@ class Server
      * start a swoole server in cli
      *
      * @param EventRepository $eventRepository
+     * @param EventExceptionRepository $eventExceptionRepository
      * @return mixed
      * @throws \Exception
      */
-    public static function start(EventRepository $eventRepository)
+    public static function start(EventRepository $eventRepository, EventExceptionRepository $eventExceptionRepository)
     {
+        new Events($eventRepository, $eventExceptionRepository);
         if(!self::$configInitialized) self::initConfig();
         self::$eventRepository = $eventRepository;
 
@@ -109,7 +113,6 @@ class Server
      */
     public static function onMasterStart(\Swoole\Server $serv)
     {
-        new Events();
         self::initTimers($serv);
         if (self::$cfgs['server_port'] === null)
         {
@@ -214,7 +217,7 @@ class Server
     {
         try
         {
-            self::createEvent($serv, $data);
+            Events::trigger($data['event']);
         }
         catch (Throwable $e) { self::logs($e); }
     }
@@ -230,113 +233,12 @@ class Server
         try
         {
             $data = $task->data;
-            self::createEvent($serv, $data);
+            Events::trigger($data['event']);
         }
         catch (Throwable $e) { self::logs($e); }
     }
 
-    /**
-     * @param \Swoole\Server $serv
-     * @param array $data
-     */
-    public static function createEvent(\Swoole\Server $serv, array $data){
-        /** @var Event $event */
-        $event = $data['event'];
-        if(!$event->eventRout) return;
-        if(!Events::has_listeners($event->eventRout)) return;
-        if(!$event->eventSchedule || $event->eventSchedule > time())
-            self::createEventCall($event);
-        else{
-            self::createdScheduledEvent($event, $serv);
-        }
-    }
 
-
-    /**
-     * @param $event Event
-     */
-    protected static function createEventCall($event){
-        $event->eventStatus = EventStatus::PULLED;
-        $event = self::$eventRepository->saveEventOnNotExist($event);
-        if(!$event) return;
-        self::callEvent($event);
-    }
-
-    /**
-     * @param $event Event
-     * @param \Swoole\Server $server
-     */
-    protected static function createdScheduledEvent($event, \Swoole\Server $server)
-    {
-        $scheduleInterval = time() - $event->eventSchedule;
-        if($scheduleInterval < 1) {
-            self::createEventCall($event);
-            return;
-        }
-        $event->eventStatus = EventStatus::SCHEDULED;
-        $event = self::$eventRepository->saveEventOnNotExist($event);
-        if(!$event) return;
-        self::scheduleEvent($event, $server);
-    }
-
-    /**
-     * @param $event Event
-     * @param \Swoole\Server $server
-     */
-    protected static function scheduleEvent($event, \Swoole\Server $server)
-    {
-        $scheduleInterval = time() - $event->eventSchedule;
-        if($scheduleInterval < 1) {
-            self::callEvent($event);
-            return;
-        }
-        $timerStart = $scheduleInterval >= self::TIMER_LIMIT ? self::TIMER_LIMIT : $scheduleInterval * 1000;
-        $server->after($timerStart,
-            function() use ($event, $server)
-            {
-                self::scheduleEvent($event, $server);
-            });
-    }
-
-
-    /**
-     * @param $event Event
-     */
-    protected static function callEvent($event)
-    {
-        try {
-            /** @var Throwable[] $errors */
-            $errors = Events::trigger($event->eventData, $event->eventRout);
-            if(!$errors || empty($errors))
-                $event->eventStatus = EventStatus::FINISHED;
-            else{
-                foreach ($errors as $error){
-                    $event->errors[] = self::throwableToEventError($error);
-                }
-                $event->eventStatus = EventStatus::FAILED;
-            }
-        }catch (Throwable $ex){
-            $event->errors[] = self::throwableToEventError($ex);
-            $event->eventStatus = EventStatus::FAILED;
-        } finally {
-            self::$eventRepository->updateEvent($event);
-        }
-    }
-
-    /**
-     * @param Throwable $throwable
-     * @return EventException
-     */
-    protected static function throwableToEventError(Throwable $throwable): EventException
-    {
-        $eventError = new EventException();
-        $eventError->exception_code = $throwable->getCode();
-        $eventError->exception_file = $throwable->getFile();
-        $eventError->exception_line = $throwable->getLine();
-        $eventError->exception_message = $throwable->getMessage();
-        $eventError->exception_trace = $throwable->getTraceAsString();
-        return $eventError;
-    }
 
     // ------------------------------------------------------------------------------
 
@@ -437,11 +339,21 @@ class Server
             $timers = getCiSwooleConfig('timers');
             foreach ($timers[0] as $route => $microSeconds)
             {
-                $serv->tick($microSeconds, function () use ($serv, $route)
+                $event = new EventCarrier(new class($route) implements Event{
+                    protected string $route;
+                    public function __construct($route)
+                    {
+                        $this->route = $route;
+                    }
+
+                    public function getEventRout(): string
+                    {
+                        return $this->route;
+                    }
+                });
+                $serv->tick($microSeconds, function () use ($serv, $event)
                 {
                     $stats = $serv->stats();
-                    $event = new Event();
-                    $event->eventRout = $route;
                     if ($stats['tasking_num'] < 64) { $serv->task(['event' => $event]); }
                 });
             }

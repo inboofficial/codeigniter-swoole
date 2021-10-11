@@ -11,10 +11,10 @@ interface EventRepository
      *
      * generate event id if not exist and persist in event storage
      *
-     * @param Event $event
-     * @return Event|null returns false if event exists
+     * @param EventCarrier $event
+     * @return EventCarrier|null returns false if event exists
      */
-    function saveEventOnNotExist(Event $event): ?Event;
+    function saveEventOnNotExist(EventCarrier $event): ?EventCarrier;
 
 
     /**
@@ -22,18 +22,18 @@ interface EventRepository
      * retrieve event form event storage by event id
      *
      * @param string $event_unique
-     * @return Event
+     * @return EventCarrier
      */
-    function getEvent(string $event_unique): ?Event;
+    function getEvent(string $event_unique): ?EventCarrier;
 
     /**
      *
      * change event status to pulled in Event Storage with in a transaction
      *
      * @param string $event_unique
-     * @return Event|null returns null if event status is not 'waiting'
+     * @return EventCarrier|null returns null if event status is not 'waiting'
      */
-    function pullEvent(string $event_unique): ?Event;
+    function pullEvent(string $event_unique): ?EventCarrier;
 
     /**
      * @param string $event_unique
@@ -55,8 +55,8 @@ interface EventRepository
     function pullRunnableEvents(): array;
 
     /**
-     * @param Event $event
-     * @return Event
+     * @param EventCarrier $event
+     * @return EventCarrier
      */
-    function updateEvent(Event $event): ?Event;
+    function updateEvent(EventCarrier $event): ?EventCarrier;
 }

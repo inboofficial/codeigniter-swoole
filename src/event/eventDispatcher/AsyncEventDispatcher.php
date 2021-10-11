@@ -1,26 +1,28 @@
 <?php namespace inboir\CodeigniterS\event\eventDispatcher;
 
 
+use Closure;
 use Co\WaitGroup;
+use Exception;
 use inboir\CodeigniterS\Core\Client;
-use inboir\CodeigniterS\event\Event;
+use inboir\CodeigniterS\Core\Server as InboServer;
+use inboir\CodeigniterS\event\EventCarrier;
+use inboir\CodeigniterS\event\EventRepository;
 use inboir\CodeigniterS\event\EventStatus;
 use Swoole\Coroutine;
+use Swoole\Server;
 use Symfony\Component\EventDispatcher\Debug\WrappedListener;
-use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Throwable;
+use function count;
+use function is_array;
+use function is_string;
 
 
 /**
- * The EventDispatcherInterface is the central point of Symfony's event listener system.
- *
- * Listeners are registered on the manager and events are dispatched through the
- * manager.
- *
  * @author M Ali Nasiri K <mohammad.ank@outlook.com>
  */
-class AsyncEventDispatcher implements EventDispatcherInterface
+class AsyncEventDispatcher
 {
 
     protected array $listeners = [];
@@ -31,111 +33,96 @@ class AsyncEventDispatcher implements EventDispatcherInterface
     protected bool $eagerOptimizer;
     protected bool $coroutineSupport;
 
-    public function __construct(bool $eagerOptimizer = true, bool $coroutineSupport = false)
+    protected EventRepository $eventRepository;
+    protected EventExceptionRepository $eventExceptionRepository;
+    protected ?Server $swooleServer;
+
+    public function __construct( EventRepository $eventRepository, EventExceptionRepository $eventExceptionRepository, ?Server $swooleServer = null,
+                                 bool $eagerOptimizer = true, bool $coroutineSupport = false)
     {
         $this->eagerOptimizer = $eagerOptimizer;
         $this->coroutineSupport = $coroutineSupport;
+        $this->eventRepository = $eventRepository;
+        $this->eventExceptionRepository = $eventExceptionRepository;
+        $this->swooleServer = $swooleServer;
     }
 
+
+    public function dispatch(EventCarrier $eventCarrier): EventCarrier
+    {
+        if($this->eventRepository != null) {
+            $eventCarrier->eventStatus = EventStatus::PULLED;
+            $eventCarrier = $this->eventRepository->saveEventOnNotExist($eventCarrier);
+        }
+        if(!$eventCarrier) return $eventCarrier;
+        if($eventCarrier->eventSchedule && $eventCarrier->eventSchedule > time()){
+            $this->scheduleEvent($eventCarrier);
+        }
+        $this->callListeners($eventCarrier);
+        return $eventCarrier;
+    }
+
+
     /**
-     * {@inheritdoc}
+     * @param $eventCarrier EventCarrier
+     * @throws Exception
      */
-    public function dispatch(object $event, string $eventName = null): object
+    protected function scheduleEvent(EventCarrier $eventCarrier)
     {
-        $eventName = $eventName ?? \get_class($event);
-
-        if (null !== $this->optimized) {
-            $listeners = $this->optimized[$eventName];
-        } else {
-            $listeners = $this->getListeners($eventName);
+        $scheduleInterval = time() - $eventCarrier->eventSchedule;
+        if($scheduleInterval < 1) {
+            $this->callListeners($eventCarrier);
+            return;
         }
-
-        if ($listeners) {
-            $this->callListeners($listeners, $eventName, $event);
+        if(($this->swooleServer) == null) {
+            if($this->eventRepository != null) {
+                $eventCarrier->eventStatus = EventStatus::BLOCKED;
+                $this->eventRepository->updateEvent($eventCarrier);
+            }
+            throw new Exception('scheduled event dispatching must be in swoole server context');
         }
-
-        return $event;
+        $timerStart = $scheduleInterval >= InboServer::TIMER_LIMIT ? InboServer::TIMER_LIMIT : $scheduleInterval * 1000;
+        $this->swooleServer->after($timerStart, function() use ($eventCarrier)
+            {
+                self::scheduleEvent($eventCarrier);
+            });
     }
-
-    public function dispatchGetErrors(object $event, string $eventName = null, $catchError = false): array
-    {
-        $eventName = $eventName ?? \get_class($event);
-
-        if (null !== $this->optimized) {
-            $listeners = $this->optimized[$eventName];
-        } else {
-            $listeners = $this->getListeners($eventName);
-        }
-
-        if ($listeners) {
-            return $this->callListeners($listeners, $eventName, $event);
-        }
-        return [];
-    }
-
 
     /**
-     * @param object $event
-     * @param string|null $eventName
-     * @param int|null $eventSchedule
-     * @param string|null $event_unique
+     * @param EventCarrier $eventCarrier
+     * @param callable $callback
      * @return string EventId
      */
-    public function asyncDispatch(object $event, ?string $eventName = null, ?int $eventSchedule = null, ?string $event_unique = null): string
+    public function asyncDispatch(EventCarrier $eventCarrier, callable $callback): string
     {
-        $eventModel = new Event($eventSchedule);
-        if($event_unique != null) $eventModel->eventID = $event_unique;
-        $eventModel->eventStatus = EventStatus::WAITING;
-        $eventModel->eventData = $event;
-        $eventModel->eventRout = $eventName;
-        Client::send(['event' => $eventModel]);
-        return $eventModel;
+        Client::send([
+            'event' => $eventCarrier,
+            'callback' => $callback
+        ]);
+        return $eventCarrier;
     }
 
 
-    /**
-     * {@inheritdoc}
-     */
-    public function getListeners(string $eventName = null): array
+    public function getListeners(string $eventRout = null): array
     {
-        if (null !== $eventName) {
-            if (empty($this->listeners[$eventName])) {
-                return [];
-            }
-
-            if (!isset($this->sorted[$eventName])) {
-                $this->sortListeners($eventName);
-            }
-
-            return $this->sorted[$eventName];
-        }
-
-        foreach ($this->listeners as $eventName => $eventListeners) {
-            if (!isset($this->sorted[$eventName])) {
-                $this->sortListeners($eventName);
-            }
-        }
-
-        return array_filter($this->sorted);
+        return $this->optimized[$eventRout];
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function getListenerPriority(string $eventName, $listener)
+
+    public function getListenerPriority(string $eventRout, $listener)
     {
-        if (empty($this->listeners[$eventName])) {
+        if (empty($this->listeners[$eventRout])) {
             return null;
         }
 
-        if (\is_array($listener) && isset($listener[0]) && $listener[0] instanceof \Closure && 2 >= \count($listener)) {
+        if (is_array($listener) && isset($listener[0]) && $listener[0] instanceof Closure && 2 >= count($listener)) {
             $listener[0] = $listener[0]();
             $listener[1] = $listener[1] ?? '__invoke';
         }
 
-        foreach ($this->listeners[$eventName] as $priority => &$listeners) {
+        foreach ($this->listeners[$eventRout] as $priority => &$listeners) {
             foreach ($listeners as &$v) {
-                if ($v !== $listener && \is_array($v) && isset($v[0]) && $v[0] instanceof \Closure && 2 >= \count($v)) {
+                if ($v !== $listener && is_array($v) && isset($v[0]) && $v[0] instanceof Closure && 2 >= count($v)) {
                     $v[0] = $v[0]();
                     $v[1] = $v[1] ?? '__invoke';
                 }
@@ -148,13 +135,10 @@ class AsyncEventDispatcher implements EventDispatcherInterface
         return null;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function hasListeners(string $eventName = null): bool
+    public function hasListeners(string $eventRout = null): bool
     {
-        if (null !== $eventName) {
-            return !empty($this->listeners[$eventName]);
+        if (null !== $eventRout) {
+            return !empty($this->listeners[$eventRout]);
         }
 
         foreach ($this->listeners as $eventListeners) {
@@ -166,63 +150,55 @@ class AsyncEventDispatcher implements EventDispatcherInterface
         return false;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function addListener(string $eventName, $listener, int $priority = 0)
+
+    public function addListener(string $eventRout, $listener, int $priority = 0)
     {
-        $this->listeners[$eventName][$priority][] = $listener;
-        unset($this->sorted[$eventName], $this->optimized[$eventName]);
+        $this->listeners[$eventRout][$priority][] = $listener;
+        unset($this->sorted[$eventRout], $this->optimized[$eventRout]);
         if($this->eagerOptimizer) {
-            $this->optimizeListeners($eventName);
-            $this->sortListeners($eventName);
+            $this->optimizeListeners($eventRout);
         }
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function removeListener(string $eventName, $listener)
+
+    public function removeListener(string $eventRout, $listener)
     {
-        if (empty($this->listeners[$eventName])) {
+        if (empty($this->listeners[$eventRout])) {
             return;
         }
 
-        if (\is_array($listener) && isset($listener[0]) && $listener[0] instanceof \Closure && 2 >= \count($listener)) {
+        if (is_array($listener) && isset($listener[0]) && $listener[0] instanceof Closure && 2 >= count($listener)) {
             $listener[0] = $listener[0]();
             $listener[1] = $listener[1] ?? '__invoke';
         }
 
-        foreach ($this->listeners[$eventName] as $priority => &$listeners) {
+        foreach ($this->listeners[$eventRout] as $priority => &$listeners) {
             foreach ($listeners as $k => &$v) {
-                if ($v !== $listener && \is_array($v) && isset($v[0]) && $v[0] instanceof \Closure && 2 >= \count($v)) {
+                if ($v !== $listener && is_array($v) && isset($v[0]) && $v[0] instanceof Closure && 2 >= count($v)) {
                     $v[0] = $v[0]();
                     $v[1] = $v[1] ?? '__invoke';
                 }
                 if ($v === $listener) {
-                    unset($listeners[$k], $this->sorted[$eventName], $this->optimized[$eventName]);
+                    unset($listeners[$k], $this->sorted[$eventRout], $this->optimized[$eventRout]);
                 }
             }
 
             if (!$listeners) {
-                unset($this->listeners[$eventName][$priority]);
+                unset($this->listeners[$eventRout][$priority]);
             }
         }
         if($this->eagerOptimizer) {
-            $this->optimizeListeners($eventName);
-            $this->sortListeners($eventName);
+            $this->optimizeListeners($eventRout);
         }
     }
 
-    /**
-     * {@inheritdoc}
-     */
+
     public function addSubscriber(EventSubscriberInterface $subscriber)
     {
         foreach ($subscriber->getSubscribedEvents() as $eventName => $params) {
-            if (\is_string($params)) {
+            if (is_string($params)) {
                 $this->addListener($eventName, [$subscriber, $params]);
-            } elseif (\is_string($params[0])) {
+            } elseif (is_string($params[0])) {
                 $this->addListener($eventName, [$subscriber, $params[0]], isset($params[1]) ? $params[1] : 0);
             } else {
                 foreach ($params as $listener) {
@@ -231,7 +207,6 @@ class AsyncEventDispatcher implements EventDispatcherInterface
             }
             if($this->eagerOptimizer) {
                 $this->optimizeListeners($eventName);
-                $this->sortListeners($eventName);
             }
         }
     }
@@ -242,16 +217,15 @@ class AsyncEventDispatcher implements EventDispatcherInterface
     public function removeSubscriber(EventSubscriberInterface $subscriber)
     {
         foreach ($subscriber->getSubscribedEvents() as $eventName => $params) {
-            if (\is_array($params) && \is_array($params[0])) {
+            if (is_array($params) && is_array($params[0])) {
                 foreach ($params as $listener) {
                     $this->removeListener($eventName, [$subscriber, $listener[0]]);
                 }
             } else {
-                $this->removeListener($eventName, [$subscriber, \is_string($params) ? $params : $params[0]]);
+                $this->removeListener($eventName, [$subscriber, is_string($params) ? $params : $params[0]]);
             }
             if($this->eagerOptimizer) {
                 $this->optimizeListeners($eventName);
-                $this->sortListeners($eventName);
             }
         }
     }
@@ -262,88 +236,74 @@ class AsyncEventDispatcher implements EventDispatcherInterface
      * This method can be overridden to add functionality that is executed
      * for each listener.
      *
-     * @param callable[] $listeners The event listeners
-     * @param string     $eventName The name of the event to dispatch
-     * @param object     $event     The event object to pass to the event handlers/listeners
+     * @param EventCarrier $eventCarrier
      */
-    protected function callListeners(iterable $listeners, string $eventName, object $event): array
+    protected function callListeners(EventCarrier $eventCarrier)
     {
-        $errors = [];
+        $event = $eventCarrier->event;
+        $eventRout = $event->getEventRout();
         if($this->coroutineSupport) {
             $waitGroup = new WaitGroup();
-            foreach ($this->coroutineCallable[$eventName] as $wrappedListener){
-                Coroutine::create($wrappedListener, $eventName, $event, $waitGroup, $errors);
+            foreach ($this->coroutineCallable[$eventRout] as $wrappedListener){
+                Coroutine::create($wrappedListener, $eventCarrier, $waitGroup);
             }
             $waitGroup->wait();
         }
         else {
-            foreach ($listeners as $listener) {
+            foreach ($this->optimized[$eventCarrier->event->getEventRout()] as $listener) {
                 try {
-                    $listener($event, $eventName, $this);
+                    $listener($event, $eventRout, $this);
                 }catch (Throwable $exception){
-                    array_push($errors, $exception);
+                    if($this->eventExceptionRepository != null)
+                        $this->eventExceptionRepository->addEventError($eventCarrier->eventID, $exception);
                 }
             }
         }
-        return $errors;
+        $eventCarrier->eventStatus = ($this->eventExceptionRepository->hasError($eventCarrier->eventID))? EventStatus::FAILED : EventStatus::FINISHED;
+        if($this->eventRepository != null)
+            $this->eventRepository->updateEvent($eventCarrier);
     }
 
-    /**
-     * Sorts the internal list of listeners for the given event by priority.
-     * @param string $eventName
-     */
-    protected function sortListeners(string $eventName)
-    {
-        krsort($this->listeners[$eventName]);
-        $this->sorted[$eventName] = [];
-
-        foreach ($this->listeners[$eventName] as &$listeners) {
-            foreach ($listeners as $k => &$listener) {
-                if (\is_array($listener) && isset($listener[0]) && $listener[0] instanceof \Closure && 2 >= \count($listener)) {
-                    $listener[0] = $listener[0]();
-                    $listener[1] = $listener[1] ?? '__invoke';
-                }
-                $this->sorted[$eventName][] = $listener;
-            }
-        }
-    }
 
     /**
      * Optimizes the internal list of listeners for the given event by priority.
-     * @param string $eventName
+     * @param string $eventRout
      * @return array
      */
-    protected function optimizeListeners(string $eventName): array
+    protected function optimizeListeners(string $eventRout): array
     {
-        krsort($this->listeners[$eventName]);
-        $this->optimized[$eventName] = [];
+        krsort($this->listeners[$eventRout]);
+        $this->optimized[$eventRout] = [];
 
-        foreach ($this->listeners[$eventName] as &$listeners) {
+        foreach ($this->listeners[$eventRout] as &$listeners) {
             foreach ($listeners as &$listener) {
-                $closure = &$this->optimized[$eventName][];
-                if (\is_array($listener) && isset($listener[0]) && $listener[0] instanceof \Closure && 2 >= \count($listener)) {
+                $closure = &$this->optimized[$eventRout][];
+                if (is_array($listener) && isset($listener[0]) && $listener[0] instanceof Closure && 2 >= count($listener)) {
                     $closure = static function (...$args) use (&$listener, &$closure) {
-                        if ($listener[0] instanceof \Closure) {
+                        if ($listener[0] instanceof Closure) {
                             $listener[0] = $listener[0]();
                             $listener[1] = $listener[1] ?? '__invoke';
                         }
-                        ($closure = \Closure::fromCallable($listener))(...$args);
+                        ($closure = Closure::fromCallable($listener))(...$args);
                     };
                 } else {
-                    $closure = $listener instanceof \Closure || $listener instanceof WrappedListener ? $listener : \Closure::fromCallable($listener);
+                    $closure = $listener instanceof Closure || $listener instanceof WrappedListener ? $listener : Closure::fromCallable($listener);
                 }
             }
         }
         if($this->coroutineSupport) {
             $this->coroutineCallable = [];
-            foreach ($this->optimized as $eventName => $listeners) {
+            foreach ($this->optimized as $eventRout => $listeners) {
                 foreach ($listeners as $listener) {
-                    $this->coroutineCallable[$eventName][] = function ($eventName, $event, WaitGroup $waitGroup, array $errors) use ($listener) {
+                    $eventDispatcher =& $this;
+                    $this->coroutineCallable[$eventRout][] = function (EventCarrier $eventCarrier,WaitGroup $waitGroup) use ($listener, $eventDispatcher) {
                         $waitGroup->add();
                         try {
-                            $listener($event, $eventName);
+                            $event =& $eventCarrier->event;
+                            $listener($event, $event->getEventRout(), $eventDispatcher);
                         } catch (Throwable $ex) {
-                            array_push($errors, $ex);
+                            if($eventDispatcher->eventExceptionRepository != null)
+                                $eventDispatcher->eventExceptionRepository->addEventError($eventCarrier->eventID, $ex);
                         } finally {
                             $waitGroup->done();
                         }
@@ -351,13 +311,13 @@ class AsyncEventDispatcher implements EventDispatcherInterface
                 }
             }
         }
-        return $this->optimized[$eventName];
+        return $this->optimized[$eventRout];
     }
 
     public function optimize(){
         foreach ($this->listeners as $eventName => $listeners){
             $this->optimizeListeners($eventName);
-            $this->sortListeners($listeners);
         }
     }
+
 }

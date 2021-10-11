@@ -4,23 +4,7 @@
 namespace inboir\CodeigniterS\event;
 
 
-class Event
+interface Event
 {
-    public string $eventID;
-    public string $eventStatus;
-    public int $eventRetryCount = 0;
-    public ?string $eventRout;
-    public object $eventData;
-    public int $eventCreated;
-    public int $eventSchedule;
-    /** @var EventException[] */
-    public array $errors = [];
-
-    public function __construct(?int $eventSchedule = null)
-    {
-        $this->eventCreated = time();
-        $this->eventSchedule = $eventSchedule ?? time();
-        $this->eventData = (object)[];
-    }
+    public function getEventRout():string;
 }
-
