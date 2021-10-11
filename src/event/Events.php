@@ -51,7 +51,7 @@ class Events {
      * @access    public
      * @param bool $coroutineSupport
      */
-    public function __construct(bool $coroutineSupport)
+    public function __construct(bool $coroutineSupport = false)
     {
         self::$dispatcher = new AsyncEventDispatcher(true ,$coroutineSupport);
     }
