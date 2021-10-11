@@ -252,12 +252,9 @@ class AsyncEventDispatcher implements EventDispatcherInterface
     protected function callListeners(iterable $listeners, string $eventName, object $event)
     {
         if($this->coroutineSupport) {
-            $listeners &= $this->listeners;
-            Coroutine\run(function () use ($listeners, $event, $eventName) {
-                foreach ($listeners as $listener) {
-                    go($listener($event, $eventName));
-                }
-            });
+            foreach ($listeners as $listener) {
+                go($listener($event, $eventName));
+            }
         }
         else {
             foreach ($listeners as $listener) {

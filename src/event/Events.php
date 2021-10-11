@@ -1,6 +1,7 @@
 <?php namespace inboir\CodeigniterS\event;
 
 
+use inboir\CodeigniterS\Core\Server;
 use inboir\CodeigniterS\event\eventDispatcher\AsyncEventDispatcher;
 
 defined('BASEPATH') or exit('No direct script access allowed');
@@ -49,11 +50,10 @@ class Events {
      * Registers a Callback for a given event
      *
      * @access    public
-     * @param bool $coroutineSupport
      */
-    public function __construct(bool $coroutineSupport = false)
+    public function __construct()
     {
-        self::$dispatcher = new AsyncEventDispatcher(true ,$coroutineSupport);
+        self::$dispatcher = new AsyncEventDispatcher(true ,Server::getConfig()['task_enable_coroutine']);
     }
 
     public static function register($event, array $callback, $priority = 0)

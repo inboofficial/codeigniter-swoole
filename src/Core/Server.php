@@ -5,7 +5,6 @@ use inboir\CodeigniterS\event\EventException;
 use inboir\CodeigniterS\event\EventRepository;
 use inboir\CodeigniterS\event\Events;
 use inboir\CodeigniterS\event\EventStatus;
-use Swoole\Process;
 use Swoole\Server\Task;
 use Throwable;
 use function inboir\CodeigniterS\Helpers\getCiSwooleConfig;
@@ -46,7 +45,7 @@ class Server
      *
      * @var array
      */
-    private static $config =
+    protected static array $config =
     [
         'daemonize'      => false,        // using as daemonize?
         'package_eof'    => '☯',         // \u262F
@@ -54,6 +53,8 @@ class Server
         'open_eof_split' => true,
         'open_eof_check' => true,
     ];
+
+    protected static bool $configInitialized = false;
 
     // ------------------------------------------------------------------------------
 
@@ -66,7 +67,7 @@ class Server
      */
     public static function start(EventRepository $eventRepository)
     {
-        self::initConfig();
+        if(!self::$configInitialized) self::initConfig();
         self::$eventRepository = $eventRepository;
 
         $serv = new \Swoole\Server
@@ -382,6 +383,7 @@ class Server
         );
 
         self::$config = array_merge($config, self::$config);
+        self::$configInitialized = true;
     }
 
     // ------------------------------------------------------------------------------
@@ -433,6 +435,15 @@ class Server
     }
 
     // ------------------------------------------------------------------------------
+
+    /**
+     * @return array
+     */
+    public static function getConfig(): array
+    {
+        if(!self::$configInitialized) self::initConfig();
+        return self::$config;
+    }
 
 
 }
