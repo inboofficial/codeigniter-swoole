@@ -6,6 +6,7 @@ use inboir\CodeigniterS\event\Event;
 use inboir\CodeigniterS\event\EventRepository;
 use inboir\CodeigniterS\event\EventStatus;
 use Psr\EventDispatcher\StoppableEventInterface;
+use Swoole\Coroutine;
 use Symfony\Component\EventDispatcher\Debug\WrappedListener;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
@@ -28,10 +29,12 @@ class AsyncEventDispatcher implements EventDispatcherInterface
     protected array $optimized = [];
 
     protected bool $eagerOptimizer;
+    protected bool $coroutineSupport;
 
-    public function __construct(bool $eagerOptimizer = true)
+    public function __construct(bool $eagerOptimizer = true, bool $coroutineSupport = false)
     {
         $this->eagerOptimizer = $eagerOptimizer;
+        $this->coroutineSupport = $coroutineSupport;
     }
 
     /**
@@ -248,13 +251,18 @@ class AsyncEventDispatcher implements EventDispatcherInterface
      */
     protected function callListeners(iterable $listeners, string $eventName, object $event)
     {
-        $stoppable = $event instanceof StoppableEventInterface;
-
-        foreach ($listeners as $listener) {
-            if ($stoppable && $event->isPropagationStopped()) {
-                break;
+        if($this->coroutineSupport) {
+            $listeners &= $this->listeners;
+            Coroutine\run(function () use ($listeners, $event, $eventName) {
+                foreach ($listeners as $listener) {
+                    go($listener($event, $eventName));
+                }
+            });
+        }
+        else {
+            foreach ($listeners as $listener) {
+                $listener($event, $eventName, $this);
             }
-            $listener($event, $eventName, $this);
         }
     }
 

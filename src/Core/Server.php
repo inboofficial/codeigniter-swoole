@@ -6,6 +6,7 @@ use inboir\CodeigniterS\event\EventRepository;
 use inboir\CodeigniterS\event\Events;
 use inboir\CodeigniterS\event\EventStatus;
 use Swoole\Process;
+use Swoole\Server\Task;
 use Throwable;
 use function inboir\CodeigniterS\Helpers\getCiSwooleConfig;
 
@@ -89,8 +90,11 @@ class Server
         $serv->on('Receive', [Server::class, 'onReceive']);
         $serv->on('Finish',  [Server::class, 'onFinish']);
         $serv->on('Close',   [Server::class, 'onClose']);
-        $serv->on('Task',    [Server::class, 'onTask']);
-
+        if(!self::$config['task_enable_coroutine']) {
+            $serv->on('Task',    [Server::class, 'onTask']);
+        }else {
+            $serv->on('Task',    [Server::class, 'onCoroutineEnabledTask']);
+        }
         // start server
         return $serv->start();
     }
@@ -104,7 +108,7 @@ class Server
      */
     public static function onMasterStart(\Swoole\Server $serv)
     {
-        new Events();
+        new Events(self::$config['task_enable_coroutine']);
         self::initTimers($serv);
         if (self::$cfgs['server_port'] === null)
         {
@@ -205,23 +209,45 @@ class Server
      * @param int $workerId
      * @param array $data
      */
-    public static function onTask(\Swoole\Server $serv, $taskId, $workerId, $data)
+    public static function onTask(\Swoole\Server $serv, int $taskId, int $workerId, array $data)
     {
         try
         {
-            /** @var Event $event */
-            $event = $data['event'];
-            if(!$event->eventRout) return;
-            if(!Events::has_listeners($event->eventRout)) return;
-            if(!$event->eventSchedule || $event->eventSchedule > time())
-                self::createEventCall($event);
-            else{
-                self::createdScheduledEvent($event, $serv);
-            }
+            self::createEvent($serv, $data);
         }
-        // kill process
         catch (Throwable $e) { self::logs($e); }
-        finally { Process::kill(getmypid()); }
+    }
+
+    /**
+     * listen on task
+     *
+     * @param \Swoole\Server $serv
+     * @param Task $task
+     */
+    public static function onCoroutineEnabledTask(\Swoole\Server $serv, Task $task)
+    {
+        try
+        {
+            $data = $task->data;
+            self::createEvent($serv, $data);
+        }
+        catch (Throwable $e) { self::logs($e); }
+    }
+
+    /**
+     * @param \Swoole\Server $serv
+     * @param array $data
+     */
+    public static function createEvent(\Swoole\Server $serv, array $data){
+        /** @var Event $event */
+        $event = $data['event'];
+        if(!$event->eventRout) return;
+        if(!Events::has_listeners($event->eventRout)) return;
+        if(!$event->eventSchedule || $event->eventSchedule > time())
+            self::createEventCall($event);
+        else{
+            self::createdScheduledEvent($event, $serv);
+        }
     }
 
 

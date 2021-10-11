@@ -48,14 +48,12 @@ class Events {
      *
      * Registers a Callback for a given event
      *
-     * @access	public
-     * @param	string	The name of the event
-     * @param	array	The callback for the Event
-     * @return	void
+     * @access    public
+     * @param bool $coroutineSupport
      */
-    public function __construct()
+    public function __construct(bool $coroutineSupport)
     {
-        self::$dispatcher = new AsyncEventDispatcher();
+        self::$dispatcher = new AsyncEventDispatcher(true ,$coroutineSupport);
     }
 
     public static function register($event, array $callback, $priority = 0)
