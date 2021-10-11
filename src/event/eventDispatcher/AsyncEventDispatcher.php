@@ -253,7 +253,9 @@ class AsyncEventDispatcher implements EventDispatcherInterface
     {
         if($this->coroutineSupport) {
             foreach ($listeners as $listener) {
-                go($listener($event, $eventName));
+                go(function () use ($event, $eventName, $listener){
+                    $listener($event, $eventName);
+                });
             }
         }
         else {
