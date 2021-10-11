@@ -314,6 +314,7 @@ class AsyncEventDispatcher implements EventDispatcherInterface
             }
         }
         if($this->coroutineSupport) {
+            $this->coroutineCallable = [];
             foreach ($this->optimized as $eventName => $listeners) {
                 foreach ($listeners as $listener) {
                     $this->coroutineCallable[$eventName][] = function ($eventName, $event, WaitGroup $waitGroup) use ($listener) {
