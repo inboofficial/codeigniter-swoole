@@ -256,7 +256,7 @@ class AsyncEventDispatcher implements EventDispatcherInterface
         if($this->coroutineSupport) {
             $waitGroup = new WaitGroup();
             foreach ($this->coroutineCallable[$eventName] as $wrappedListener){
-                Coroutine::create($wrappedListener, [$eventName, $event, $waitGroup]);
+                Coroutine::create($wrappedListener, $eventName, $event, $waitGroup);
             }
             $waitGroup->wait();
         }
