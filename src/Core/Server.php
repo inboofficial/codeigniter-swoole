@@ -109,7 +109,7 @@ class Server
      */
     public static function onMasterStart(\Swoole\Server $serv)
     {
-        new Events(self::$config['task_enable_coroutine']);
+        new Events();
         self::initTimers($serv);
         if (self::$cfgs['server_port'] === null)
         {

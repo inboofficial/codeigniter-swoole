@@ -1,6 +1,7 @@
 <?php namespace inboir\CodeigniterS\event\eventDispatcher;
 
 
+use Co\WaitGroup;
 use inboir\CodeigniterS\Core\Client;
 use inboir\CodeigniterS\event\Event;
 use inboir\CodeigniterS\event\EventRepository;
@@ -27,6 +28,7 @@ class AsyncEventDispatcher implements EventDispatcherInterface
     protected array $listeners = [];
     protected array $sorted = [];
     protected array $optimized = [];
+    protected array $coroutineCallable = [];
 
     protected bool $eagerOptimizer;
     protected bool $coroutineSupport;
@@ -252,11 +254,11 @@ class AsyncEventDispatcher implements EventDispatcherInterface
     protected function callListeners(iterable $listeners, string $eventName, object $event)
     {
         if($this->coroutineSupport) {
-            foreach ($listeners as $listener) {
-                go(function () use ($event, $eventName, $listener){
-                    $listener($event, $eventName);
-                });
+            $waitGroup = new WaitGroup();
+            foreach ($this->coroutineCallable[$eventName] as $wrappedListener){
+                Coroutine::create($wrappedListener, [$eventName, $event, $waitGroup]);
             }
+            $waitGroup->wait();
         }
         else {
             foreach ($listeners as $listener) {
@@ -311,7 +313,22 @@ class AsyncEventDispatcher implements EventDispatcherInterface
                 }
             }
         }
-
+        if($this->coroutineSupport) {
+            foreach ($this->optimized as $eventName => $listeners) {
+                foreach ($listeners as $listener) {
+                    $this->coroutineCallable[$eventName][] = function ($eventName, $event, WaitGroup $waitGroup) use ($listener) {
+                        $waitGroup->add();
+                        try {
+                            $listener($event, $eventName);
+                        } catch (\Throwable $ex) {
+                            print 'dashmajan';
+                        } finally {
+                            $waitGroup->done();
+                        }
+                    };
+                }
+            }
+        }
         return $this->optimized[$eventName];
     }
 
