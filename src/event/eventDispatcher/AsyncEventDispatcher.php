@@ -248,7 +248,6 @@ class AsyncEventDispatcher
             $waitGroup->wait();
         }
         else {
-            $eventRout = $eventCarrier->event->getEventRout();
             if(empty($this->optimized[$eventRout]))
                 $this->optimizeListeners($eventRout);
             foreach ($this->optimized[$eventRout] as $listener) {
@@ -261,8 +260,8 @@ class AsyncEventDispatcher
             }
         }
         if($this->eventRepository != null) {
-            $this->eventRepository->updateEvent($eventCarrier);
             $eventCarrier->eventStatus = ($this->eventExceptionRepository->hasError($eventCarrier->eventID))? EventStatus::FAILED : EventStatus::FINISHED;
+            $this->eventRepository->updateEvent($eventCarrier);
         }
     }
 
