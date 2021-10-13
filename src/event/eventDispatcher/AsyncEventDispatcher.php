@@ -32,11 +32,11 @@ class AsyncEventDispatcher
     protected bool $eagerOptimizer;
     protected bool $coroutineSupport;
 
-    protected EventRepository $eventRepository;
-    protected EventExceptionRepository $eventExceptionRepository;
+    protected ?EventRepository $eventRepository;
+    protected ?EventExceptionRepository $eventExceptionRepository;
     protected ?Server $swooleServer;
 
-    public function __construct( EventRepository $eventRepository, EventExceptionRepository $eventExceptionRepository, ?Server &$swooleServer = null,
+    public function __construct( ?EventRepository $eventRepository, ?EventExceptionRepository $eventExceptionRepository, ?Server &$swooleServer = null,
                                  bool $eagerOptimizer = true, bool $coroutineSupport = false)
     {
         $this->eagerOptimizer = $eagerOptimizer;
