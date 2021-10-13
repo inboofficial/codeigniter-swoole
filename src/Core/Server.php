@@ -1,10 +1,8 @@
 <?php  namespace inboir\CodeigniterS\Core;
 
 use Exception;
-use inboir\CodeigniterS\event\Event;
-use inboir\CodeigniterS\event\EventCarrier;
 use inboir\CodeigniterS\event\eventDispatcher\EventExceptionRepository;
-use inboir\CodeigniterS\event\EventRepository;
+use inboir\CodeigniterS\event\eventDispatcher\EventRepository;
 use inboir\CodeigniterS\event\Events;
 use Swoole\Coroutine;
 use Swoole\Server\Task;

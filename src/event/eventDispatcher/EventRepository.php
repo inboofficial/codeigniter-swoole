@@ -1,8 +1,10 @@
 <?php
 
 
-namespace inboir\CodeigniterS\event;
+namespace inboir\CodeigniterS\event\eventDispatcher;
 
+
+use inboir\CodeigniterS\event\EventCarrier;
 
 interface EventRepository
 {

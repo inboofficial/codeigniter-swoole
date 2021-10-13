@@ -7,7 +7,6 @@ use Exception;
 use inboir\CodeigniterS\Core\Client;
 use inboir\CodeigniterS\Core\Server as InboServer;
 use inboir\CodeigniterS\event\EventCarrier;
-use inboir\CodeigniterS\event\EventRepository;
 use inboir\CodeigniterS\event\EventStatus;
 use Swoole\Coroutine;
 use Swoole\Server;

@@ -5,6 +5,7 @@ use Exception;
 use inboir\CodeigniterS\Core\Server;
 use inboir\CodeigniterS\event\eventDispatcher\AsyncEventDispatcher;
 use inboir\CodeigniterS\event\eventDispatcher\EventExceptionRepository;
+use inboir\CodeigniterS\event\eventDispatcher\EventRepository;
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
