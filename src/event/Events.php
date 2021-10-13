@@ -15,7 +15,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
 class Events {
 
 
-    public static AsyncEventDispatcher $dispatcher ;
+    public static ?AsyncEventDispatcher $dispatcher = null;
     protected static bool $listenerRegistered = false;
     // ------------------------------------------------------------------------
 
