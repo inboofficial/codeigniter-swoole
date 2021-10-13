@@ -6,9 +6,9 @@ namespace inboir\CodeigniterS\event;
 
 class Event
 {
-    protected const EVENT_ROUT = 'rout.event';
+    protected string $event_rout = 'rout.event';
     public function getEventRout():string
     {
-        return self::EVENT_ROUT;
+        return $this->event_rout;
     }
 }
