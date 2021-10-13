@@ -1,5 +1,6 @@
 <?php namespace inboir\CodeigniterS\Core;
 
+use Exception;
 use function inboir\CodeigniterS\Helpers\getCiSwooleConfig;
 
 /**
@@ -29,7 +30,6 @@ class Client
         'server_type' => SWOOLE_SOCK_UNIX_STREAM,
         'debug_file'  => APPPATH . 'logs/swoole_debug.log',
     ];
-
     // ------------------------------------------------------------------------------
 
     /**
@@ -40,6 +40,7 @@ class Client
      *     'route'   => 'your/route/uri', // the route uri will be call
      *     'params'  => [],               // params will be passed to your method
      * ];
+     * @throws Exception
      */
     public static function send(array $data)
     {
@@ -71,6 +72,7 @@ class Client
 
     /**
      * reload swoole server
+     * @throws Exception
      */
     public static function reload()
     {
@@ -81,6 +83,7 @@ class Client
 
     /**
      * shutdown swoole server
+     * @throws Exception
      */
     public static function shutdown()
     {
@@ -136,9 +139,8 @@ class Client
      * @param \Swoole\Client $client
      * @param string $data
      */
-    public static function onReceive(\Swoole\Client $client, $data)
+    public static function onReceive(\Swoole\Client $client, string $data)
     {
-        return;
     }
 
     // ------------------------------------------------------------------------------
@@ -150,7 +152,6 @@ class Client
      */
     public static function onClose(\Swoole\Client $client)
     {
-        return;
     }
 
     // ------------------------------------------------------------------------------
@@ -158,7 +159,7 @@ class Client
     /**
      * init config
      *
-     * @throws \Exception
+     * @throws Exception
      */
     private static function initConfig()
     {

@@ -1,6 +1,8 @@
 <?php  namespace inboir\CodeigniterS\Core;
 
 use Exception;
+use inboir\CodeigniterS\event\Event;
+use inboir\CodeigniterS\event\EventCarrier;
 use inboir\CodeigniterS\event\eventDispatcher\EventExceptionRepository;
 use inboir\CodeigniterS\event\eventDispatcher\EventRepository;
 use inboir\CodeigniterS\event\Events;
@@ -232,10 +234,10 @@ class Server
     /**
      * listen on task
      *
-     * @param \Swoole\Server $serv
+     * @param \Swoole\Server $server
      * @param Task $task
      */
-    public static function onCoroutineEnabledTask(\Swoole\Server $serv, Task $task)
+    public static function onCoroutineEnabledTask(\Swoole\Server $server, Task $task)
     {
         try
         {
@@ -339,9 +341,9 @@ class Server
     /**
      * init timers for stamsel
      *
-     * @param \Swoole\Server $serv
+     * @param \Swoole\Server $server
      */
-    private static function initTimers(\Swoole\Server $serv)
+    private static function initTimers(\Swoole\Server $server)
     {
         try
         {
@@ -350,10 +352,10 @@ class Server
             {
                 $event = new Event($route, (object)[]);
                 $eventCarrier = new EventCarrier($event);
-                $serv->tick($microSeconds, function () use ($serv, $eventCarrier)
+                $server->tick($microSeconds, function () use ($server, $eventCarrier)
                 {
-                    $stats = $serv->stats();
-                    if ($stats['tasking_num'] < 4) { $serv->task(['event' => $eventCarrier]); }
+                    $stats = $server->stats();
+                    if ($stats['tasking_num'] < 4) { $server->task(['event' => $eventCarrier]); }
                 });
             }
         }
