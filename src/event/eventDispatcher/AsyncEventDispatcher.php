@@ -48,20 +48,19 @@ class AsyncEventDispatcher
     }
 
 
-    public function dispatch(EventCarrier $eventCarrier): EventCarrier
+    public function serverDispatch(EventCarrier $eventCarrier): EventCarrier
     {
         if($this->eventRepository != null) {
             $eventCarrier->eventStatus = EventStatus::PULLED;
             $eventCarrier = $this->eventRepository->saveEventOnNotExist($eventCarrier);
+            if(!$eventCarrier) return $eventCarrier;
         }
-        if(!$eventCarrier) return $eventCarrier;
         if($eventCarrier->eventSchedule && $eventCarrier->eventSchedule > time()){
             $this->scheduleEvent($eventCarrier);
-        }
-        $this->callListeners($eventCarrier);
+        }else
+            $this->callListeners($eventCarrier);
         return $eventCarrier;
     }
-
 
     /**
      * @param $eventCarrier EventCarrier
@@ -318,6 +317,86 @@ class AsyncEventDispatcher
         foreach ($this->listeners as $eventName => $listeners){
             $this->optimizeListeners($eventName);
         }
+    }
+
+    /**
+     * @return EventRepository
+     */
+    public function getEventRepository(): EventRepository
+    {
+        return $this->eventRepository;
+    }
+
+    /**
+     * @param EventRepository $eventRepository
+     */
+    public function setEventRepository(EventRepository $eventRepository): void
+    {
+        $this->eventRepository = $eventRepository;
+    }
+
+    /**
+     * @return EventExceptionRepository
+     */
+    public function getEventExceptionRepository(): EventExceptionRepository
+    {
+        return $this->eventExceptionRepository;
+    }
+
+    /**
+     * @param EventExceptionRepository $eventExceptionRepository
+     */
+    public function setEventExceptionRepository(EventExceptionRepository $eventExceptionRepository): void
+    {
+        $this->eventExceptionRepository = $eventExceptionRepository;
+    }
+
+    /**
+     * @return Server|null
+     */
+    public function getSwooleServer(): ?Server
+    {
+        return $this->swooleServer;
+    }
+
+    /**
+     * @param Server|null $swooleServer
+     */
+    public function setSwooleServer(?Server $swooleServer): void
+    {
+        $this->swooleServer = $swooleServer;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isEagerOptimizer(): bool
+    {
+        return $this->eagerOptimizer;
+    }
+
+    /**
+     * @param bool $eagerOptimizer
+     */
+    public function setEagerOptimizer(bool $eagerOptimizer): void
+    {
+        $this->eagerOptimizer = $eagerOptimizer;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isCoroutineSupport(): bool
+    {
+        return $this->coroutineSupport;
+    }
+
+    /**
+     * @param bool $coroutineSupport
+     */
+    public function setCoroutineSupport(bool $coroutineSupport): void
+    {
+        $this->coroutineSupport = $coroutineSupport;
     }
 
 }

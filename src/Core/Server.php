@@ -7,6 +7,7 @@ use inboir\CodeigniterS\event\EventException;
 use inboir\CodeigniterS\event\EventRepository;
 use inboir\CodeigniterS\event\Events;
 use inboir\CodeigniterS\event\EventStatus;
+use Swoole\Coroutine;
 use Swoole\Server\Task;
 use Throwable;
 use function inboir\CodeigniterS\Helpers\getCiSwooleConfig;
@@ -24,7 +25,6 @@ class Server
 
     // ------------------------------------------------------------------------------
     const TIMER_LIMIT = 86400000;
-    protected static EventRepository $eventRepository;
     /**
      * host config
      *
@@ -72,7 +72,6 @@ class Server
     {
         new Events($eventRepository, $eventExceptionRepository);
         if(!self::$configInitialized) self::initConfig();
-        self::$eventRepository = $eventRepository;
 
         $serv = new \Swoole\Server
         (
@@ -217,7 +216,12 @@ class Server
     {
         try
         {
-            Events::trigger($data['event']);
+            if(array_key_exists('event',$data))
+                Events::trigger($data['event']);
+            if(array_key_exists('callback', $data) and !empty($data['callback']) and is_callable($data['callback'])){
+                $callback = $data['callback'];
+                $callback($data['event']);
+            }
         }
         catch (Throwable $e) { self::logs($e); }
     }
@@ -233,7 +237,12 @@ class Server
         try
         {
             $data = $task->data;
-            Events::trigger($data['event']);
+            if(array_key_exists('event',$data))
+                Events::trigger($data['event']);
+            if(array_key_exists('callback', $data) and !empty($data['callback']) and is_callable($data['callback'])){
+                $callback = $data['callback'];
+                Coroutine::create($callback, $data['event']);
+            }
         }
         catch (Throwable $e) { self::logs($e); }
     }

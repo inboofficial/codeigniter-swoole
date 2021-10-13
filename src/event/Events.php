@@ -21,13 +21,14 @@ class Events {
      *
      * Registers a Callback for a given event
      *
-     * @param EventRepository $eventRepository
-     * @param EventExceptionRepository $eventExceptionRepository
+     * @param EventRepository|null $eventRepository
+     * @param EventExceptionRepository|null $eventExceptionRepository
      * @param bool $eagerOptimizer
+     * @param \Swoole\Server|null $server
      */
-    public function __construct(EventRepository $eventRepository,EventExceptionRepository $eventExceptionRepository, bool $eagerOptimizer = true)
+    public function __construct(?EventRepository $eventRepository,?EventExceptionRepository $eventExceptionRepository, bool $eagerOptimizer = true, ?\Swoole\Server $server = null)
     {
-        self::$dispatcher = new AsyncEventDispatcher($eventRepository, $eventExceptionRepository,
+        self::$dispatcher = new AsyncEventDispatcher($eventRepository, $eventExceptionRepository, $server,
             $eagerOptimizer ,Server::getConfig()['task_enable_coroutine']);
     }
 
@@ -37,6 +38,14 @@ class Events {
         self::$dispatcher->addListener($eventRout, $callback, $priority);
     }
 
+    public static function registerAll(){
+        $listeners = array_filter(get_declared_classes(), fn($class) => is_subclass_of($class, CISubscriber::class));
+        foreach ($listeners as $listener)
+        {
+            $listener::getInstance();
+        }
+    }
+
     // ------------------------------------------------------------------------
 
     /**
@@ -44,13 +53,13 @@ class Events {
      *
      *
      * @access    public
-     * @param mixed    Any data that is to be passed to the listener
+     * @param EventCarrier $eventCarrier
      * @return EventCarrier
      */
     public static function trigger(EventCarrier $eventCarrier): EventCarrier
     {
         if(self::$dispatcher->hasListeners($eventCarrier->event->getEventRout()))
-            return self::$dispatcher->dispatch($eventCarrier);
+            return self::$dispatcher->serverDispatch($eventCarrier);
         else
             return $eventCarrier;
     }
