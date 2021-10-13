@@ -29,7 +29,7 @@ class Server
      *
      * @var array
      */
-    private static $cfgs =
+    private static array $cfgs =
         [
             'server_port' => null,
             'server_host' => '/var/run/swoole.sock',
@@ -151,9 +151,9 @@ class Server
      * listen on workers start & set timers
      *
      * @param \Swoole\Server $serv
-     * @param  int $workerId
+     * @param int $workerId
      */
-    public static function onWorkerStart(\Swoole\Server $serv, $workerId)
+    public static function onWorkerStart(\Swoole\Server $serv, int $workerId)
     {
         // set process name
         if(($workerId >= $serv->setting['worker_num']))
@@ -177,7 +177,7 @@ class Server
      * @param int $reactorId
      * @param string $data
      */
-    public static function onReceive(\Swoole\Server $serv, $fd, $reactorId, $data = '')
+    public static function onReceive(\Swoole\Server $serv, int $fd, int $reactorId, $data = '')
     {
         // close client
         $serv->close($fd);
@@ -261,9 +261,8 @@ class Server
      * @param \Swoole\Server $serv
      * @param int $fd
      */
-    public static function onConnect(\Swoole\Server $serv, $fd)
+    public static function onConnect(\Swoole\Server $serv, int $fd)
     {
-        return;
     }
 
     // ------------------------------------------------------------------------------
@@ -274,9 +273,8 @@ class Server
      * @param \Swoole\Server $serv
      * @param int $fd
      */
-    public static function onClose(\Swoole\Server $serv, $fd)
+    public static function onClose(\Swoole\Server $serv, int $fd)
     {
-        return;
     }
 
     // ------------------------------------------------------------------------------
@@ -288,9 +286,8 @@ class Server
      * @param int $taskId
      * @param mixed $data
      */
-    public static function onFinish(\Swoole\Server $serv, $taskId, $data)
+    public static function onFinish(\Swoole\Server $serv, int $taskId, $data)
     {
-        return;
     }
 
     // ------------------------------------------------------------------------------
