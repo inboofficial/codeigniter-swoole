@@ -14,6 +14,7 @@ class Events {
 
 
     public static AsyncEventDispatcher $dispatcher ;
+    protected static bool $listenerRegistered = false;
     // ------------------------------------------------------------------------
 
     /**
@@ -38,12 +39,15 @@ class Events {
         self::$dispatcher->addListener($eventRout, $callback, $priority);
     }
 
-    public static function registerAll(){
-        $listeners = array_filter(get_declared_classes(), fn($class) => is_subclass_of($class, CISubscriber::class));
-        foreach ($listeners as $listener)
-        {
-            $listener::getInstance();
+    public static function registerAll(bool $force = false)
+    {
+        if(!self::$listenerRegistered or $force) {
+            $listeners = array_filter(get_declared_classes(), fn($class) => is_subclass_of($class, CISubscriber::class));
+            foreach ($listeners as $listener) {
+                $listener::getInstance();
+            }
         }
+        self::$listenerRegistered = true;
     }
 
     // ------------------------------------------------------------------------

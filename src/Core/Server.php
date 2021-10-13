@@ -1,12 +1,11 @@
 <?php  namespace inboir\CodeigniterS\Core;
 
+use Exception;
 use inboir\CodeigniterS\event\Event;
 use inboir\CodeigniterS\event\EventCarrier;
 use inboir\CodeigniterS\event\eventDispatcher\EventExceptionRepository;
-use inboir\CodeigniterS\event\EventException;
 use inboir\CodeigniterS\event\EventRepository;
 use inboir\CodeigniterS\event\Events;
-use inboir\CodeigniterS\event\EventStatus;
 use Swoole\Coroutine;
 use Swoole\Server\Task;
 use Throwable;
@@ -31,12 +30,12 @@ class Server
      * @var array
      */
     private static $cfgs =
-    [
-        'server_port' => null,
-        'server_host' => '/var/run/swoole.sock',
-        'server_type' => SWOOLE_SOCK_UNIX_STREAM,
-        'debug_file'  => APPPATH . 'logs/swoole_debug.log',
-    ];
+        [
+            'server_port' => null,
+            'server_host' => '/var/run/swoole.sock',
+            'server_type' => SWOOLE_SOCK_UNIX_STREAM,
+            'debug_file'  => APPPATH . 'logs/swoole_debug.log',
+        ];
 
     // ------------------------------------------------------------------------------
 
@@ -48,13 +47,13 @@ class Server
      * @var array
      */
     protected static array $config =
-    [
-        'daemonize'      => false,        // using as daemonize?
-        'package_eof'    => '☯',         // \u262F
-        'reload_async'   => true,
-        'open_eof_split' => true,
-        'open_eof_check' => true,
-    ];
+        [
+            'daemonize'      => false,        // using as daemonize?
+            'package_eof'    => '☯',         // \u262F
+            'reload_async'   => true,
+            'open_eof_split' => true,
+            'open_eof_check' => true,
+        ];
 
     protected static bool $configInitialized = false;
 
@@ -66,7 +65,7 @@ class Server
      * @param EventRepository $eventRepository
      * @param EventExceptionRepository $eventExceptionRepository
      * @return mixed
-     * @throws \Exception
+     * @throws Exception
      */
     public static function start(EventRepository $eventRepository, EventExceptionRepository $eventExceptionRepository)
     {
@@ -205,8 +204,8 @@ class Server
         // reload command
         if (!empty($data['reload']))
         {
-           $serv->reload();
-           return;
+            $serv->reload();
+            return;
         }
 
         // start a task
@@ -305,7 +304,7 @@ class Server
     /**
      * init config
      *
-     * @throws \Exception
+     * @throws Exception
      */
     private static function initConfig()
     {
@@ -359,7 +358,7 @@ class Server
             $timers = getCiSwooleConfig('timers');
             foreach ($timers[0] as $route => $microSeconds)
             {
-                $event = new EventCarrier(new class($route) implements Event{
+                $event = new EventCarrier(new class($route) extends Event{
                     protected string $route;
                     public function __construct($route)
                     {
@@ -387,6 +386,7 @@ class Server
 
     /**
      * @return array
+     * @throws Exception
      */
     public static function getConfig(): array
     {
