@@ -76,7 +76,7 @@ class Events {
     public static function trigger(EventCarrier $eventCarrier): EventCarrier
     {
         if(self::$dispatcher->hasListeners($eventCarrier->event->getEventRout()))
-            return self::$dispatcher->serverDispatch($eventCarrier);
+            return self::$dispatcher->dispatch($eventCarrier);
         else
             return $eventCarrier;
     }

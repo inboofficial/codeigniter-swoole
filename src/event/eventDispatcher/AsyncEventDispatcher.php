@@ -48,7 +48,7 @@ class AsyncEventDispatcher
     }
 
 
-    public function serverDispatch(EventCarrier $eventCarrier): EventCarrier
+    public function dispatch(EventCarrier $eventCarrier): EventCarrier
     {
         if($this->eventRepository != null) {
             $eventCarrier->eventStatus = EventStatus::PULLED;
