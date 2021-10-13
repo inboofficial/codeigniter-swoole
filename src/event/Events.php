@@ -33,7 +33,7 @@ class Events {
      * @param \Swoole\Server|null $server
      * @throws Exception
      */
-    public static function initialize(?EventRepository $eventRepository, ?EventExceptionRepository $eventExceptionRepository, bool $eagerOptimizer = true, ?\Swoole\Server &$server = null)
+    public static function initialize(?EventRepository $eventRepository = null, ?EventExceptionRepository $eventExceptionRepository = null, bool $eagerOptimizer = true, ?\Swoole\Server &$server = null)
     {
         if(self::$dispatcher == null) {
             self::$dispatcher = new AsyncEventDispatcher($eventRepository, $eventExceptionRepository, $server,
