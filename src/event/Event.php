@@ -4,7 +4,11 @@
 namespace inboir\CodeigniterS\event;
 
 
-interface Event
+class Event
 {
-    public function getEventRout():string;
+    protected const EVENT_ROUT = 'rout.event';
+    public function getEventRout():string
+    {
+        return self::EVENT_ROUT;
+    }
 }
