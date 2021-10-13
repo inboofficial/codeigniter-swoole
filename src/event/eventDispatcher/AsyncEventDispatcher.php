@@ -37,14 +37,14 @@ class AsyncEventDispatcher
     protected EventExceptionRepository $eventExceptionRepository;
     protected ?Server $swooleServer;
 
-    public function __construct( EventRepository $eventRepository, EventExceptionRepository $eventExceptionRepository, ?Server $swooleServer = null,
+    public function __construct( EventRepository $eventRepository, EventExceptionRepository $eventExceptionRepository, ?Server &$swooleServer = null,
                                  bool $eagerOptimizer = true, bool $coroutineSupport = false)
     {
         $this->eagerOptimizer = $eagerOptimizer;
         $this->coroutineSupport = $coroutineSupport;
         $this->eventRepository = $eventRepository;
         $this->eventExceptionRepository = $eventExceptionRepository;
-        $this->swooleServer = $swooleServer;
+        $this->swooleServer =& $swooleServer;
     }
 
 
@@ -362,9 +362,9 @@ class AsyncEventDispatcher
     /**
      * @param Server|null $swooleServer
      */
-    public function setSwooleServer(?Server $swooleServer): void
+    public function setSwooleServer(?Server &$swooleServer): void
     {
-        $this->swooleServer = $swooleServer;
+        $this->swooleServer =& $swooleServer;
     }
 
     /**

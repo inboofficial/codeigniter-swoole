@@ -26,7 +26,7 @@ class Events {
      * @param bool $eagerOptimizer
      * @param \Swoole\Server|null $server
      */
-    public function __construct(?EventRepository $eventRepository,?EventExceptionRepository $eventExceptionRepository, bool $eagerOptimizer = true, ?\Swoole\Server $server = null)
+    public function __construct(?EventRepository $eventRepository,?EventExceptionRepository $eventExceptionRepository, bool $eagerOptimizer = true, ?\Swoole\Server &$server = null)
     {
         self::$dispatcher = new AsyncEventDispatcher($eventRepository, $eventExceptionRepository, $server,
             $eagerOptimizer ,Server::getConfig()['task_enable_coroutine']);

@@ -70,10 +70,9 @@ class Server
      */
     public static function start(EventRepository $eventRepository, EventExceptionRepository $eventExceptionRepository)
     {
-        new Events($eventRepository, $eventExceptionRepository);
         if(!self::$configInitialized) self::initConfig();
 
-        $serv = new \Swoole\Server
+        $server = new \Swoole\Server
         (
             self::$cfgs['server_host'],
             self::$cfgs['server_port'],
@@ -82,25 +81,37 @@ class Server
         );
 
         // init config
-        $serv->set(self::$config);
+        $server->set(self::$config);
 
         // listen on server init
-        $serv->on('ManagerStart', [Server::class, 'onManagerStart']);
-        $serv->on('WorkerStart',  [Server::class, 'onWorkerStart']);
-        $serv->on('Start',        [Server::class, 'onMasterStart']);
+        $server->on('ManagerStart', [Server::class, 'onManagerStart']);
+        $server->on('WorkerStart',  [Server::class, 'onWorkerStart']);
+        $server->on('Start',        [Server::class, 'onMasterStart']);
 
         // listen on base event
-        $serv->on('Connect', [Server::class, 'onConnect']);
-        $serv->on('Receive', [Server::class, 'onReceive']);
-        $serv->on('Finish',  [Server::class, 'onFinish']);
-        $serv->on('Close',   [Server::class, 'onClose']);
+        $server->on('Connect', [Server::class, 'onConnect']);
+        $server->on('Receive', [Server::class, 'onReceive']);
+        $server->on('Finish',  [Server::class, 'onFinish']);
+        $server->on('Close',   [Server::class, 'onClose']);
         if(!self::$config['task_enable_coroutine']) {
-            $serv->on('Task',    [Server::class, 'onTask']);
+            $server->on('Task',    [Server::class, 'onTask']);
         }else {
-            $serv->on('Task',    [Server::class, 'onCoroutineEnabledTask']);
+            $server->on('Task',    [Server::class, 'onCoroutineEnabledTask']);
         }
+
+        if(empty(Events::$dispatcher))
+            new Events($eventRepository, $eventExceptionRepository, false, $server);
+        else{
+            if(Events::$dispatcher->getSwooleServer() == null) Events::$dispatcher->setSwooleServer($server);
+            if(Events::$dispatcher->getEventExceptionRepository() == null) Events::$dispatcher->setEventExceptionRepository($eventExceptionRepository);
+            if(Events::$dispatcher->getEventRepository() == null) Events::$dispatcher->setEventRepository($eventRepository);
+            Events::$dispatcher->setCoroutineSupport(self::getConfig()['task_enable_coroutine']);
+        }
+        Events::registerAll();
+        Events::$dispatcher->optimize();
+
         // start server
-        return $serv->start();
+        return $server->start();
     }
 
     // ------------------------------------------------------------------------------
