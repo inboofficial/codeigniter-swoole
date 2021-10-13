@@ -47,6 +47,11 @@ class AsyncEventDispatcher
     }
 
 
+    /**
+     * @param EventCarrier $eventCarrier
+     * @return EventCarrier
+     * @throws Exception
+     */
     public function dispatch(EventCarrier $eventCarrier): EventCarrier
     {
         if($this->eventRepository != null) {
@@ -88,15 +93,16 @@ class AsyncEventDispatcher
 
     /**
      * @param EventCarrier $eventCarrier
-     * @param callable $callback
+     * @param callable|null $callback
      * @return string EventId
      */
-    public function asyncDispatch(EventCarrier $eventCarrier, callable $callback): string
+    public function asyncDispatch(EventCarrier $eventCarrier, ?callable $callback = null): string
     {
-        Client::send([
-            'event' => $eventCarrier,
-            'callback' => $callback
-        ]);
+        $message = [];
+        $message['event'] = $eventCarrier;
+        if($callback != null)
+            $message['callback'] = $callback;
+        Client::send($message);
         return $eventCarrier;
     }
 
@@ -401,4 +407,10 @@ class AsyncEventDispatcher
         $this->coroutineSupport = $coroutineSupport;
     }
 
+    public function removeAllListeners(){
+        $this->listeners = [];
+        $this->optimized = [];
+        $this->sorted = [];
+        $this->coroutineCallable = [];
+    }
 }

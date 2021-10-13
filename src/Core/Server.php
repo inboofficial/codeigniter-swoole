@@ -1,11 +1,10 @@
 <?php  namespace inboir\CodeigniterS\Core;
 
 use Exception;
-use inboir\CodeigniterS\event\Event;
-use inboir\CodeigniterS\event\EventCarrier;
 use inboir\CodeigniterS\event\eventDispatcher\EventExceptionRepository;
 use inboir\CodeigniterS\event\eventDispatcher\EventRepository;
 use inboir\CodeigniterS\event\Events;
+use inboir\CodeigniterS\event\Subscriber\CIAsyncSubscriber;
 use Swoole\Coroutine;
 use Swoole\Server\Task;
 use Throwable;
@@ -99,7 +98,7 @@ class Server
         }
 
         Events::initialize($eventRepository, $eventExceptionRepository, false, $server);
-        Events::registerAll();
+        Events::registerAll(CIAsyncSubscriber::class, true, true);
 
         Events::$dispatcher->optimize();
 
@@ -349,14 +348,12 @@ class Server
             $timers = getCiSwooleConfig('timers');
             foreach ($timers[0] as $route => $microSeconds)
             {
-                $event = new Event();
-                $event->setEventRout($route);
-                $event->setEventData((object)[]);
+                $event = new Event($route, (object)[]);
                 $eventCarrier = new EventCarrier($event);
                 $serv->tick($microSeconds, function () use ($serv, $eventCarrier)
                 {
                     $stats = $serv->stats();
-                    if ($stats['tasking_num'] < 64) { $serv->task(['event' => $eventCarrier]); }
+                    if ($stats['tasking_num'] < 4) { $serv->task(['event' => $eventCarrier]); }
                 });
             }
         }

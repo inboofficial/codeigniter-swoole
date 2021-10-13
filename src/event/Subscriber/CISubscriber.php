@@ -1,6 +1,7 @@
-<?php namespace inboir\CodeigniterS\event;
+<?php namespace inboir\CodeigniterS\event\Subscriber;
 
 
+use inboir\CodeigniterS\event\Events;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
 abstract class CISubscriber implements EventSubscriberInterface

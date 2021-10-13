@@ -9,6 +9,17 @@ class Event
     protected string $eventRout = 'rout.event';
     protected object $eventData;
 
+    /**
+     * Event constructor.
+     * @param string $eventRout
+     * @param object $eventData
+     */
+    public function __construct(string $eventRout, object $eventData)
+    {
+        $this->eventRout = $eventRout;
+        $this->eventData = $eventData;
+    }
+
 
     /**
      * @return string

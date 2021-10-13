@@ -6,6 +6,7 @@ use inboir\CodeigniterS\Core\Server;
 use inboir\CodeigniterS\event\eventDispatcher\AsyncEventDispatcher;
 use inboir\CodeigniterS\event\eventDispatcher\EventExceptionRepository;
 use inboir\CodeigniterS\event\eventDispatcher\EventRepository;
+use inboir\CodeigniterS\event\Subscriber\CISyncSubscriber;
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
@@ -47,16 +48,26 @@ class Events {
         }
     }
 
-
-    public static function register($eventRout, array $callback, $priority = 0)
+    /**
+     * @param string $eventRout
+     * @param callable[] $callback
+     * @param int $priority
+     */
+    public static function register(string $eventRout, array $callback, int $priority = 0)
     {
         self::$dispatcher->addListener($eventRout, $callback, $priority);
     }
 
-    public static function registerAll(bool $force = false)
+    /**
+     * @param string $subscriberClass
+     * @param bool $force
+     * @param bool $clean
+     */
+    public static function registerAll($subscriberClass = CISyncSubscriber::class, bool $force = false, bool $clean = false)
     {
         if(!self::$listenerRegistered or $force) {
-            $listeners = array_filter(get_declared_classes(), fn($class) => is_subclass_of($class, CISubscriber::class));
+            if($clean) self::$dispatcher->removeAllListeners();
+            $listeners = array_filter(get_declared_classes(), fn($class) => is_subclass_of($class, $subscriberClass));
             foreach ($listeners as $listener) {
                 $listener::getInstance();
             }
@@ -72,19 +83,43 @@ class Events {
      *
      * @access    public
      * @param EventCarrier $eventCarrier
+     * @param callable|null $callback
      * @return EventCarrier
+     * @throws Exception
      */
-    public static function trigger(EventCarrier $eventCarrier): EventCarrier
-    {
-        if(self::$dispatcher->hasListeners($eventCarrier->event->getEventRout()))
-            return self::$dispatcher->dispatch($eventCarrier);
-        else
-            return $eventCarrier;
-    }
-
-    public static function asyncTrigger(EventCarrier $eventCarrier, callable $callback)
+    public static function trigger(EventCarrier $eventCarrier, ?callable $callback = null): EventCarrier
     {
         self::$dispatcher->asyncDispatch($eventCarrier, $callback);
+        if(self::$dispatcher->hasListeners($eventCarrier->event->getEventRout())) {
+            return self::$dispatcher->dispatch($eventCarrier);
+        }
+        else {
+            return $eventCarrier;
+        }
+    }
+
+    /**
+     * @param EventCarrier $eventCarrier
+     * @param callable|null $callback
+     */
+    public static function asyncTrigger(EventCarrier $eventCarrier, ?callable $callback = null)
+    {
+        self::$dispatcher->asyncDispatch($eventCarrier, $callback);
+    }
+
+    /**
+     * @param EventCarrier $eventCarrier
+     * @return EventCarrier
+     * @throws Exception
+     */
+    public static function syncTrigger(EventCarrier $eventCarrier): EventCarrier
+    {
+        if(self::$dispatcher->hasListeners($eventCarrier->event->getEventRout())) {
+            return self::$dispatcher->dispatch($eventCarrier);
+        }
+        else {
+            return $eventCarrier;
+        }
     }
 
     // ------------------------------------------------------------------------
