@@ -98,15 +98,9 @@ class Server
             $server->on('Task',    [Server::class, 'onCoroutineEnabledTask']);
         }
 
-        if(empty(Events::$dispatcher))
-            new Events($eventRepository, $eventExceptionRepository, false, $server);
-        else{
-            if(Events::$dispatcher->getSwooleServer() == null) Events::$dispatcher->setSwooleServer($server);
-            if(Events::$dispatcher->getEventExceptionRepository() == null) Events::$dispatcher->setEventExceptionRepository($eventExceptionRepository);
-            if(Events::$dispatcher->getEventRepository() == null) Events::$dispatcher->setEventRepository($eventRepository);
-            Events::$dispatcher->setCoroutineSupport(self::getConfig()['task_enable_coroutine']);
-        }
+        Events::initialize($eventRepository, $eventExceptionRepository, false, $server);
         Events::registerAll();
+
         Events::$dispatcher->optimize();
 
         // start server

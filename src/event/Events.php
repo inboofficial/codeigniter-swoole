@@ -1,6 +1,7 @@
 <?php namespace inboir\CodeigniterS\event;
 
 
+use Exception;
 use inboir\CodeigniterS\Core\Server;
 use inboir\CodeigniterS\event\eventDispatcher\AsyncEventDispatcher;
 use inboir\CodeigniterS\event\eventDispatcher\EventExceptionRepository;
@@ -17,6 +18,10 @@ class Events {
     protected static bool $listenerRegistered = false;
     // ------------------------------------------------------------------------
 
+    private function __construct()
+    {
+    }
+
     /**
      * Register
      *
@@ -26,11 +31,19 @@ class Events {
      * @param EventExceptionRepository|null $eventExceptionRepository
      * @param bool $eagerOptimizer
      * @param \Swoole\Server|null $server
+     * @throws Exception
      */
-    public function __construct(?EventRepository $eventRepository,?EventExceptionRepository $eventExceptionRepository, bool $eagerOptimizer = true, ?\Swoole\Server &$server = null)
+    public static function initialize(?EventRepository $eventRepository, ?EventExceptionRepository $eventExceptionRepository, bool $eagerOptimizer = true, ?\Swoole\Server &$server = null)
     {
-        self::$dispatcher = new AsyncEventDispatcher($eventRepository, $eventExceptionRepository, $server,
-            $eagerOptimizer ,Server::getConfig()['task_enable_coroutine']);
+        if(self::$dispatcher == null) {
+            self::$dispatcher = new AsyncEventDispatcher($eventRepository, $eventExceptionRepository, $server,
+                $eagerOptimizer, Server::getConfig()['task_enable_coroutine']);
+        }else{
+            if($server) Events::$dispatcher->setSwooleServer($server);
+            if($eventExceptionRepository) Events::$dispatcher->setEventExceptionRepository($eventExceptionRepository);
+            if($eventRepository) Events::$dispatcher->setEventRepository($eventRepository);
+            self::$dispatcher->setCoroutineSupport(Server::getConfig()['task_enable_coroutine']);
+        }
     }
 
 
