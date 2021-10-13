@@ -1,6 +1,8 @@
 <?php  namespace inboir\CodeigniterS\Core;
 
 use Exception;
+use inboir\CodeigniterS\event\Event;
+use inboir\CodeigniterS\event\EventCarrier;
 use inboir\CodeigniterS\event\eventDispatcher\EventExceptionRepository;
 use inboir\CodeigniterS\event\eventDispatcher\EventRepository;
 use inboir\CodeigniterS\event\Events;
@@ -350,22 +352,14 @@ class Server
             $timers = getCiSwooleConfig('timers');
             foreach ($timers[0] as $route => $microSeconds)
             {
-                $event = new EventCarrier(new class($route) extends Event{
-                    protected string $route;
-                    public function __construct($route)
-                    {
-                        $this->route = $route;
-                    }
-
-                    public function getEventRout(): string
-                    {
-                        return $this->route;
-                    }
-                });
-                $serv->tick($microSeconds, function () use ($serv, $event)
+                $event = new Event();
+                $event->setEventRout($route);
+                $event->setEventData((object)[]);
+                $eventCarrier = new EventCarrier($event);
+                $serv->tick($microSeconds, function () use ($serv, $eventCarrier)
                 {
                     $stats = $serv->stats();
-                    if ($stats['tasking_num'] < 64) { $serv->task(['event' => $event]); }
+                    if ($stats['tasking_num'] < 64) { $serv->task(['event' => $eventCarrier]); }
                 });
             }
         }
