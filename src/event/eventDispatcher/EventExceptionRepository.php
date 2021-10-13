@@ -8,7 +8,7 @@ use Throwable;
 
 interface EventExceptionRepository
 {
-    public function addEventError(string $eventID, Throwable $ex);
+    public function addEventError(string $event_unique, Throwable $ex);
 
-    public function hasError(string $eventID): bool;
+    public function hasError(string $event_unique): bool;
 }
